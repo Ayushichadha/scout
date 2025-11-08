@@ -57,12 +57,19 @@ class SubgoalHeadState:
 
     step: Tensor
     goal: Tensor
+    gate: Optional[Tensor]
 
     def clone(self) -> "SubgoalHeadState":
-        return SubgoalHeadState(step=self.step.clone(), goal=self.goal.clone())
+        gate = None if self.gate is None else self.gate.clone()
+        return SubgoalHeadState(
+            step=self.step.clone(), goal=self.goal.clone(), gate=gate
+        )
 
     def detach(self) -> "SubgoalHeadState":
-        return SubgoalHeadState(step=self.step.detach(), goal=self.goal.detach())
+        gate = None if self.gate is None else self.gate.detach()
+        return SubgoalHeadState(
+            step=self.step.detach(), goal=self.goal.detach(), gate=gate
+        )
 
 
 @dataclass
@@ -112,7 +119,12 @@ class SubgoalHead(nn.Module):
     def initial_state(self, batch_size: int, device: torch.device) -> SubgoalHeadState:
         step = torch.zeros(batch_size, dtype=torch.long, device=device)
         goal = torch.zeros(batch_size, self.cfg.goal_dim, device=device)
-        return SubgoalHeadState(step=step, goal=goal)
+        gate: Optional[Tensor]
+        if self.logit_proj is not None:
+            gate = torch.ones(batch_size, 1, device=device)
+        else:
+            gate = None
+        return SubgoalHeadState(step=step, goal=goal, gate=gate)
 
     def _compute_goal(self, z_h: Tensor) -> Tensor:
         goal = self.goal_proj(z_h)
@@ -209,7 +221,15 @@ class SubgoalHead(nn.Module):
         else:
             goal_to_store = goal
 
-        new_state = SubgoalHeadState(step=step, goal=goal_to_store)
+        gate_to_store: Optional[Tensor]
+        if gate is None:
+            gate_to_store = None
+        elif self.cfg.detach_goals:
+            gate_to_store = gate.detach()
+        else:
+            gate_to_store = gate
+
+        new_state = SubgoalHeadState(step=step, goal=goal_to_store, gate=gate_to_store)
 
         output = SubgoalHeadOutput(
             goal=goal,
