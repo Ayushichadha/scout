@@ -269,6 +269,70 @@ def cosine_schedule_with_warmup_lr_lambda(
     )
 
 
+def validate_training_config(
+    config: PretrainConfig, train_metadata: PuzzleDatasetMetadata, rank: int = 0
+):
+    """Validate training configuration and print warnings/errors."""
+    errors = []
+    warnings = []
+
+    # Check data path exists
+    if not os.path.exists(config.data_path):
+        errors.append(f"Data path does not exist: {config.data_path}")
+
+    # Check batch size
+    if config.global_batch_size <= 0:
+        errors.append(
+            f"global_batch_size must be positive, got {config.global_batch_size}"
+        )
+
+    # Check learning rates
+    if config.lr <= 0:
+        errors.append(f"lr must be positive, got {config.lr}")
+    if config.puzzle_emb_lr <= 0:
+        errors.append(f"puzzle_emb_lr must be positive, got {config.puzzle_emb_lr}")
+
+    # Check epochs
+    if config.epochs <= 0:
+        errors.append(f"epochs must be positive, got {config.epochs}")
+
+    # Check device availability
+    if config.device == "cuda" and not torch.cuda.is_available():
+        warnings.append("CUDA requested but not available, falling back to CPU")
+        config.device = "cpu"
+
+    # Check subgoal head configuration if present
+    arch_extra = config.arch.__pydantic_extra__  # type: ignore
+    if "subgoal_head" in arch_extra:
+        subgoal_cfg = arch_extra["subgoal_head"]
+        hidden_size = arch_extra.get("hidden_size", 512)
+        goal_dim = subgoal_cfg.get("goal_dim", hidden_size)
+        if goal_dim > hidden_size:
+            warnings.append(
+                f"subgoal_head.goal_dim ({goal_dim}) > hidden_size ({hidden_size}), this may cause issues"
+            )
+
+    # Check feudal loss weight
+    loss_extra = config.arch.loss.__pydantic_extra__  # type: ignore
+    feudal_loss_weight = loss_extra.get("feudal_loss_weight", 0.0)
+    if feudal_loss_weight > 0 and "subgoal_head" not in arch_extra:
+        warnings.append(
+            "feudal_loss_weight > 0 but no subgoal_head configured, feudal loss will be 0"
+        )
+
+    # Print warnings and errors (rank 0 only)
+    if rank == 0:
+        for warning in warnings:
+            print(f"⚠️  WARNING: {warning}")
+        for error in errors:
+            print(f"❌ ERROR: {error}")
+
+    if errors:
+        raise ValueError(f"Configuration validation failed with {len(errors)} error(s)")
+
+    return config
+
+
 def init_train_state(
     config: PretrainConfig, train_metadata: PuzzleDatasetMetadata, world_size: int
 ):
@@ -331,22 +395,39 @@ def train_batch(
     if train_state.step > train_state.total_steps:  # At most train_total_steps
         return
 
-    # To device
-    if config.device == "cuda":
-        batch = {k: v.cuda(non_blocking=True) for k, v in batch.items()}
-    else:
-        batch = {k: v.to("cpu") for k, v in batch.items()}
+    try:
+        # To device
+        if config.device == "cuda":
+            batch = {k: v.cuda(non_blocking=True) for k, v in batch.items()}
+        else:
+            batch = {k: v.to("cpu") for k, v in batch.items()}
 
-    # Init carry if it is None
-    if train_state.carry is None:
-        train_state.carry = train_state.model.initial_carry(batch)  # type: ignore
+        # Init carry if it is None
+        if train_state.carry is None:
+            train_state.carry = train_state.model.initial_carry(batch)  # type: ignore
 
-    # Forward
-    train_state.carry, loss, metrics, _, _ = train_state.model(
-        carry=train_state.carry, batch=batch, return_keys=[]
-    )
+        # Forward
+        train_state.carry, loss, metrics, _, _ = train_state.model(
+            carry=train_state.carry, batch=batch, return_keys=[]
+        )
 
-    ((1 / global_batch_size) * loss).backward()
+        # Check for NaN/Inf in loss
+        if not torch.isfinite(loss):
+            if rank == 0:
+                print(
+                    f"⚠️  WARNING: Non-finite loss detected at step {train_state.step}: {loss.item()}"
+                )
+            # Skip this batch
+            return None
+
+        ((1 / global_batch_size) * loss).backward()
+    except Exception as e:
+        if rank == 0:
+            print(f"❌ ERROR: Training batch failed at step {train_state.step}: {e}")
+            import traceback
+
+            traceback.print_exc()
+        raise
 
     # Allreduce
     if world_size > 1:
@@ -578,6 +659,9 @@ def launch(hydra_config: DictConfig):
     if os.environ.get("HRM_PRETRAIN_QUICK", "0") == "1":
         config.quick_overfit = True
 
+    # Validate configuration (before quick mode modifications)
+    # We'll validate again after quick mode if needed
+
     # Print resolved Hydra config once and list key groups (rank 0 only)
     if RANK == 0:
         try:
@@ -727,6 +811,9 @@ def launch(hydra_config: DictConfig):
         world_size=WORLD_SIZE,
     )
 
+    # Validate configuration after all modifications
+    config = validate_training_config(config, train_metadata, rank=RANK)
+
     # Train state
     train_state = init_train_state(config, train_metadata, world_size=WORLD_SIZE)
 
@@ -769,6 +856,9 @@ def launch(hydra_config: DictConfig):
                 rank=RANK,
                 world_size=WORLD_SIZE,
             )
+            # Skip logging if batch was skipped (e.g., non-finite loss)
+            if metrics is None:
+                continue
             if RANK == 0 and metrics is not None:
                 if config.enable_wandb:
                     try:
@@ -838,6 +928,10 @@ def launch(hydra_config: DictConfig):
                 rank=RANK,
                 world_size=WORLD_SIZE,
             )
+
+            # Skip logging if batch was skipped (e.g., non-finite loss)
+            if metrics is None:
+                continue
 
             if RANK == 0 and metrics is not None:
                 if config.enable_wandb:

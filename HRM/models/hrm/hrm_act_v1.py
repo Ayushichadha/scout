@@ -435,9 +435,12 @@ class HierarchicalReasoningModel_ACTV1(nn.Module):
                 manager_repr, subgoal_state
             )
 
-            outputs["subgoal_goal"] = subgoal_output.goal.detach()
+            # Use non-detached goal for loss computation (allows gradients to flow back)
+            # The state stores detached goals for deep supervision, but we need gradients
+            # for the feudal loss to train the subgoal head
+            outputs["subgoal_goal"] = subgoal_output.goal
             if subgoal_output.gate is not None:
-                outputs["subgoal_gate"] = subgoal_output.gate.detach()
+                outputs["subgoal_gate"] = subgoal_output.gate
             outputs["subgoal_updated"] = subgoal_output.updated.to(torch.float32)
 
         with torch.no_grad():

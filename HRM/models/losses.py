@@ -204,6 +204,38 @@ class ACTLossHead(nn.Module):
             )
             metrics["feudal_loss"] = feudal_loss_value.detach()
 
+            # Subgoal metrics (as per NEXT_STEPS.md)
+            with torch.no_grad():
+                # Subgoal update frequency
+                subgoal_updated = outputs.get("subgoal_updated")
+                if subgoal_updated is not None:
+                    metrics["subgoal_update_frequency"] = subgoal_updated.sum()
+
+                # Subgoal gate mean (commitment strength)
+                if gate is not None:
+                    if gate.dim() > 1:
+                        gate_flat = gate.squeeze(-1)
+                    else:
+                        gate_flat = gate
+                    metrics["subgoal_gate_mean"] = gate_flat.mean()
+                    metrics["subgoal_gate_std"] = gate_flat.std()
+
+                # Subgoal goal norm (magnitude)
+                goal_norm = torch.norm(manager_goal, p=2, dim=-1)
+                metrics["subgoal_goal_norm_mean"] = goal_norm.mean()
+                metrics["subgoal_goal_norm_std"] = goal_norm.std()
+
+                # Worker-goal alignment (cosine similarity)
+                if worker_state.dim() == 3:
+                    worker_repr = worker_state.mean(dim=1)  # [B, T, D] -> [B, D]
+                else:
+                    worker_repr = worker_state  # [B, D]
+                worker_norm = F.normalize(worker_repr, p=2, dim=-1, eps=1e-8)
+                goal_norm_vec = F.normalize(manager_goal, p=2, dim=-1, eps=1e-8)
+                alignment = (worker_norm * goal_norm_vec).sum(dim=-1)
+                metrics["subgoal_worker_alignment_mean"] = alignment.mean()
+                metrics["subgoal_worker_alignment_std"] = alignment.std()
+
         # Filter outputs for return
         detached_outputs = {k: outputs[k].detach() for k in return_keys if k in outputs}
 
