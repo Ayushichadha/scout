@@ -2,6 +2,7 @@ name: hrm.hrm_act_v1@HierarchicalReasoningModel_ACTV1
 loss:
   name: losses@ACTLossHead
   loss_type: stablemax_cross_entropy
+  feudal_loss_weight: 0.1
 
 halt_exploration_prob: 0.1
 halt_max_steps: 16

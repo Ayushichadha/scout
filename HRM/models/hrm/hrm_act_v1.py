@@ -422,6 +422,10 @@ class HierarchicalReasoningModel_ACTV1(nn.Module):
             "q_continue_logits": q_continue_logits,
         }
 
+        # Add hidden states to outputs for feudal loss computation
+        outputs["worker_hidden"] = extras["worker_hidden"]
+        outputs["manager_hidden"] = extras["manager_hidden"]
+
         new_subgoal_state: Optional[SubgoalHeadState] = None
         subgoal_output = None
         if self.subgoal_head is not None:
