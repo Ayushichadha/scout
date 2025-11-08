@@ -1,0 +1,37 @@
+# Quick experiment config for feudal loss testing
+# Run with: python pretrain.py --config-name=cfg_pretrain experiment=quick
+
+defaults:
+  - cfg_pretrain
+  - _self_
+
+# Override for quick testing
+device: cpu
+max_steps: 10
+enable_wandb: false
+global_batch_size: 4
+epochs: 1
+lr_warmup_steps: 0
+eval_interval: null
+final_eval: false
+
+# Smaller model for quick test
+arch:
+  halt_max_steps: 4
+  H_cycles: 1
+  L_cycles: 1
+  H_layers: 1
+  L_layers: 1
+  hidden_size: 32
+  num_heads: 2
+  expansion: 2
+  puzzle_emb_ndim: 32
+  subgoal_head:
+    hidden_size: 32
+    goal_dim: 32
+    manager_period: 2
+
+# Feudal loss weight
+loss:
+  feudal_loss_weight: 0.1
+
