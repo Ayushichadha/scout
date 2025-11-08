@@ -430,7 +430,7 @@ class HierarchicalReasoningModel_ACTV1(nn.Module):
         subgoal_output = None
         if self.subgoal_head is not None:
             manager_hidden = extras["manager_hidden"]
-            manager_repr = manager_hidden[:, 0]
+            manager_repr = manager_hidden[:, 0].to(torch.float32)
             new_subgoal_state, subgoal_output = self.subgoal_head(
                 manager_repr, subgoal_state
             )
