@@ -19,3 +19,4 @@ results/
 *.egg-info/
 build/
 dist/
+experiments/
