@@ -31,9 +31,10 @@ def run_experiment(
         f"device={device}",
         f"max_steps={max_steps}",
         f"enable_wandb={enable_wandb}",
-        f"loss.feudal_loss_weight={feudal_loss_weight}",
+        f"arch.loss.feudal_loss_weight={feudal_loss_weight}",
         f"arch.subgoal_head.manager_period={manager_period}",
-        f"run_name={run_name}",
+        f"+run_name={run_name}",
+        "data_path=data/conceptarc-mini",
     ]
 
     # Add any additional kwargs

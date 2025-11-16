@@ -16,12 +16,13 @@ echo "  Max steps: $MAX_STEPS"
 echo "  Device: $DEVICE"
 echo ""
 
-python pretrain.py \
+python3 pretrain.py \
     device=$DEVICE \
     max_steps=$MAX_STEPS \
     enable_wandb=false \
     global_batch_size=4 \
-    loss.feudal_loss_weight=$FEUDAL_WEIGHT \
+    data_path=data/conceptarc-mini \
+    arch.loss.feudal_loss_weight=$FEUDAL_WEIGHT \
     arch.subgoal_head.manager_period=$MANAGER_PERIOD \
     arch.halt_max_steps=4 \
     arch.H_cycles=1 \
@@ -37,5 +38,5 @@ python pretrain.py \
     epochs=1 \
     lr_warmup_steps=0 \
     eval_interval=null \
-    final_eval=false
+    +final_eval=false
 
