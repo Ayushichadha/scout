@@ -1,1 +1,2 @@
-# Scout: Subgoal Planning with HRM
+Scout is an experimental subgoal-augmented extension of Sapient’s Hierarchical Reasoning Model (HRM), where a slow “manager” emits FeUdal-style directional goals in latent space and a fast “worker” is trained to align its hidden-state trajectory with those directions via an intrinsic feudal loss. The repo plugs into the upstream HRM codebase to study how temporally sparse, vector-valued subgoals and commitment windows (controlled by `manager_period` and `feudal_loss_weight`) affect long-horizon credit assignment and abstraction-heavy reasoning (e.g., ARC-style tasks).
+
