@@ -284,7 +284,8 @@ def plot_feudal_weight_sweep(
         if period == main_period:
             label = f"Feudal (Period={period})"
         else:
-            label = f"Period={period}"
+            # Label single-run points clearly
+            label = f"Period={period} (single run)"
 
         # Plot curve
         ax.errorbar(
@@ -370,7 +371,7 @@ def plot_feudal_weight_sweep(
     ax.set_xlabel("Feudal Loss Weight", fontsize=13, fontweight="bold")
     ax.set_ylabel(ylabel, fontsize=13, fontweight="bold")
 
-    title = "Feudal Weight Sweep"
+    title = f"Feudal Weight Sweep (Period={main_period})"
     if baseline_mean is not None:
         title += f"\n(Baseline: {baseline_mean:.4f})"
     ax.set_title(title, fontsize=15, fontweight="bold", pad=20)

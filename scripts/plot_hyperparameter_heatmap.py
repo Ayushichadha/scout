@@ -55,6 +55,11 @@ def load_experiment_data(experiment_files: List[Path]) -> Dict:
             if period is None:
                 continue
 
+            # Exclude weight=0.0 (baseline) from heatmap to avoid baseline mismatch
+            # Baseline should be shown separately in other plots with unified values
+            if weight == 0.0:
+                continue
+
             key = (period, weight)
             if key not in grid_data:
                 grid_data[key] = {
@@ -93,8 +98,9 @@ def create_heatmap(
         cmap_name: Colormap name
     """
     # Extract all unique periods and weights
+    # Exclude weight=0.0 as it's not true baseline (true baseline comes from baseline_comparison files)
     periods = sorted(set(p for p, w in grid_data.keys()))
-    weights = sorted(set(w for p, w in grid_data.keys()))
+    weights = sorted(set(w for p, w in grid_data.keys() if w > 0))
 
     if not periods or not weights:
         print(f"⚠️  No data found. Skipping {metric_name} heatmap.")
@@ -170,6 +176,16 @@ def create_heatmap(
     metric_label = "Loss" if metric_name == "lm_loss" else "Accuracy"
     cbar.set_label(metric_label, fontsize=12, fontweight="bold")
 
+    # Add legend for missing cells
+    from matplotlib.patches import Patch
+
+    legend_elements = [
+        Patch(
+            facecolor="lightgray", edgecolor="white", alpha=0.3, label="Not evaluated"
+        )
+    ]
+    ax.legend(handles=legend_elements, loc="upper right", fontsize=10, framealpha=0.9)
+
     # Add text annotations for each cell
     for i, weight in enumerate(weights):
         for j, period in enumerate(periods):
@@ -234,6 +250,16 @@ def create_heatmap(
                     alpha=0.6,
                 )
 
+    # Add legend for missing data
+    from matplotlib.patches import Patch
+
+    legend_elements = [
+        Patch(
+            facecolor="lightgray", alpha=0.3, edgecolor="white", label="Not evaluated"
+        ),
+    ]
+    ax.legend(handles=legend_elements, loc="upper right", fontsize=10, framealpha=0.9)
+
     plt.tight_layout()
 
     # Save plot
@@ -280,26 +306,53 @@ def main():
     print("\nGenerating heatmaps...")
 
     # Loss heatmap
+    # Note: weight=0.0 entries are from sweep runs, not true baseline
+    # True baseline (no feudal) should be excluded or labeled separately
     create_heatmap(
         grid_data,
         args.output_dir,
         metric_name="lm_loss",
-        title="Hyperparameter Heatmap: Manager Period × Feudal Weight\n(Language Model Loss - Lower is Better)",
+        title="Hyperparameter Heatmap: Manager Period × Feudal Weight\n(Language Model Loss - Lower is Better)\nNote: Only subset of grid evaluated (see filled cells)",
         ylabel="Feudal Loss Weight",
         xlabel="Manager Period",
         cmap_name="YlOrRd",  # Yellow-Orange-Red: yellow = low loss (good), red = high loss (bad)
     )
 
-    # Accuracy heatmap
-    create_heatmap(
-        grid_data,
-        args.output_dir,
-        metric_name="accuracy",
-        title="Hyperparameter Heatmap: Manager Period × Feudal Weight\n(Accuracy - Higher is Better)",
-        ylabel="Feudal Loss Weight",
-        xlabel="Manager Period",
-        cmap_name="YlGn",  # Yellow-Green: yellow = low accuracy, green = high accuracy (good)
-    )
+    # Accuracy heatmap - only create if we have data across multiple periods
+    periods = sorted(set(p for p, w in grid_data.keys()))
+    accuracy_periods = set()
+    for (p, w), metrics in grid_data.items():
+        if metrics.get("accuracy"):
+            accuracy_periods.add(p)
+
+    if len(accuracy_periods) > 1:
+        # Multiple periods have accuracy data
+        create_heatmap(
+            grid_data,
+            args.output_dir,
+            metric_name="accuracy",
+            title="Hyperparameter Heatmap: Manager Period × Feudal Weight\n(Accuracy - Higher is Better)\nNote: Only subset of grid evaluated (see filled cells)",
+            ylabel="Feudal Loss Weight",
+            xlabel="Manager Period",
+            cmap_name="YlGn",  # Yellow-Green: yellow = low accuracy, green = high accuracy (good)
+        )
+    elif len(accuracy_periods) == 1:
+        # Only single period - create with descriptive title
+        period = sorted(accuracy_periods)[0]
+        create_heatmap(
+            grid_data,
+            args.output_dir,
+            metric_name="accuracy",
+            title=f"Accuracy across Feudal Weights (Period={period} only; other cells unmeasured)\nNote: Only subset of grid evaluated (see filled cells)",
+            ylabel="Feudal Loss Weight",
+            xlabel="Manager Period",
+            cmap_name="YlGn",  # Yellow-Green: yellow = low accuracy, green = high accuracy (good)
+        )
+    else:
+        # No accuracy data
+        print(
+            "⚠️  No accuracy data found. Skipping accuracy heatmap (use accuracy line plot instead)."
+        )
 
     print("\n✅ All heatmaps generated!")
 
