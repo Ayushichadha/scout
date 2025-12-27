@@ -304,24 +304,34 @@ def plot_feudal_weight_sweep(
             markeredgewidth=1.5,
         )
 
-    # Highlight optimal weight (lowest loss for main period)
+    # Highlight optimal weight (best metric for main period)
     if main_period in feudal_data:
         main_data = feudal_data[main_period]
         best_weight = None
-        best_loss = float("inf")
+        best_value = None
+
+        # Determine if higher is better (accuracy) or lower is better (loss)
+        higher_is_better = metric_name == "accuracy"
 
         for weight in weights:
             values = main_data.get(weight, {}).get(metric_name, [])
             if values:
                 mean = np.mean(values)
-                if mean < best_loss and weight > 0:  # Exclude baseline
-                    best_loss = mean
-                    best_weight = weight
+                if weight > 0:  # Exclude baseline
+                    if best_value is None:
+                        best_value = mean
+                        best_weight = weight
+                    elif higher_is_better and mean > best_value:
+                        best_value = mean
+                        best_weight = weight
+                    elif not higher_is_better and mean < best_value:
+                        best_value = mean
+                        best_weight = weight
 
         if best_weight is not None:
             ax.plot(
                 best_weight,
-                best_loss,
+                best_value,
                 marker="*",
                 markersize=25,
                 color="#FBBF24",  # Amber-400
@@ -332,9 +342,10 @@ def plot_feudal_weight_sweep(
             )
 
             # Add annotation
+            metric_label = "Accuracy" if metric_name == "accuracy" else "Loss"
             ax.annotate(
-                f"Best: w={best_weight}\nLoss={best_loss:.4f}",
-                xy=(best_weight, best_loss),
+                f"Best: w={best_weight}\n{metric_label}={best_value:.4f}",
+                xy=(best_weight, best_value),
                 xytext=(15, 25),
                 textcoords="offset points",
                 bbox=dict(
