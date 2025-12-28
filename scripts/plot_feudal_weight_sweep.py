@@ -6,10 +6,10 @@ Purpose: Show that light feudal weight helps, but heavy weight hurts.
 
 Features:
 - x-axis: feudal_weight (0, 0.05, 0.1, 0.2...)
-- y-axis: Eval LM loss
+- y-axis: Eval LM loss or Accuracy
 - Main line: Fixed manager_period (preferably P=3, fallback to P=4)
-- Optional: Additional lines for other periods (P=1, P=6) to show interaction
-- Baseline: weight=0 is baseline (must be included)
+- Baseline: Dashed reference line for HRM without subgoal head
+- λ=0: Special point labeled as "Subgoal head only (λ=0)"
 """
 
 import json
@@ -18,6 +18,26 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Import shared style
+from plot_style import (
+    apply_style,
+    COLORS,
+    FIGSIZE,
+    LINE_WIDTH,
+    LINE_WIDTH_REFERENCE,
+    MARKER_SIZE,
+    MARKER_SIZE_HIGHLIGHT,
+    MARKER_EDGE_WIDTH,
+    CAPSIZE,
+    CAPTHICK,
+    ERROR_LINE_WIDTH,
+    FONT_ANNOTATION,
+    save_figure,
+    add_footnote,
+    format_baseline_label,
+    format_lambda_zero_label,
+)
 
 try:
     from scipy import stats
@@ -140,7 +160,6 @@ def plot_feudal_weight_sweep(
     baseline_data: Dict,
     output_dir: Path,
     primary_period: int = 3,
-    additional_periods: Optional[List[int]] = None,
     metric_name: str = "lm_loss",
     ylabel: str = "Language Model Loss (lower is better)",
 ):
@@ -152,7 +171,6 @@ def plot_feudal_weight_sweep(
         baseline_data: Dict with baseline metric lists
         output_dir: Directory to save plot
         primary_period: Main period to plot (default: 3)
-        additional_periods: Optional additional periods to show
         metric_name: Name of metric to plot
         ylabel: Label for y-axis
     """
@@ -171,16 +189,6 @@ def plot_feudal_weight_sweep(
         print(
             f"⚠️  Period {primary_period} not found in data. Using period {main_period} instead."
         )
-        print(
-            f"   To plot period {primary_period}, run a feudal weight sweep at that period."
-        )
-
-    # Collect periods to plot
-    periods_to_plot = [main_period]
-    if additional_periods:
-        for p in additional_periods:
-            if p in available_periods and p != main_period:
-                periods_to_plot.append(p)
 
     # Extract weights for main period
     main_period_data = feudal_data[main_period]
@@ -200,259 +208,182 @@ def plot_feudal_weight_sweep(
     if baseline_values:
         baseline_mean, baseline_std, _ = compute_statistics(baseline_values)
 
-    # Create figure
-    try:
-        plt.style.use("seaborn-v0_8-whitegrid")
-    except OSError:
-        try:
-            plt.style.use("seaborn-whitegrid")
-        except OSError:
-            pass
-
-    fig, ax = plt.subplots(figsize=(10, 7))
+    # Apply consistent style
+    apply_style()
+    fig, ax = plt.subplots(figsize=FIGSIZE)
 
     # Plot baseline as horizontal reference line
     if baseline_mean is not None:
         ax.axhline(
             y=baseline_mean,
-            color="#6B7280",  # Gray-600
+            color=COLORS["baseline"],
             linestyle="--",
-            linewidth=2.5,
-            label="HRM baseline (no feudal head)",
-            alpha=0.8,
+            linewidth=LINE_WIDTH_REFERENCE,
+            label=format_baseline_label(),
             zorder=1,
         )
 
-        # Add error band for baseline if we have multiple runs
+        # Add subtle error band for baseline if we have multiple runs
         if len(baseline_values) > 1 and baseline_std is not None:
             ax.fill_between(
                 [min(weights) - 0.01, max(weights) + 0.01],
                 baseline_mean - baseline_std,
                 baseline_mean + baseline_std,
-                color="#6B7280",
-                alpha=0.15,
+                color=COLORS["baseline_fill"],
+                alpha=0.12,
                 zorder=0,
             )
 
-    # Color palette for different periods
-    colors = {
-        main_period: "#8B5CF6",  # Purple (main)
-        1: "#EF4444",  # Red
-        6: "#10B981",  # Green
-        4: "#F59E0B",  # Amber (fallback)
-    }
+    # Compute statistics for each weight
+    means = []
+    stds = []
+    valid_weights = []
+    single_run_weights = []
 
-    # Plot curves for each period
-    for period in periods_to_plot:
-        if period not in feudal_data:
+    for weight in weights:
+        values = main_period_data[weight][metric_name]
+        if not values:
             continue
 
-        period_data = feudal_data[period]
-        period_weights = sorted(
-            [w for w in period_data.keys() if period_data[w][metric_name]]
+        mean, std, _ = compute_statistics(values)
+        if mean is not None:
+            means.append(mean)
+            stds.append(std)
+            valid_weights.append(weight)
+            if len(values) == 1:
+                single_run_weights.append(weight)
+
+    if not valid_weights:
+        print(f"⚠️  No valid data for period {main_period}. Skipping plot.")
+        plt.close()
+        return
+
+    # Separate λ=0 from λ>0
+    w0_idx = None
+    if 0.0 in valid_weights:
+        w0_idx = valid_weights.index(0.0)
+
+    # Plot λ>0 curve
+    w_positive = [w for w in valid_weights if w > 0]
+    means_positive = [means[i] for i, w in enumerate(valid_weights) if w > 0]
+    stds_positive = [stds[i] for i, w in enumerate(valid_weights) if w > 0]
+
+    if w_positive:
+        ax.errorbar(
+            w_positive,
+            means_positive,
+            yerr=stds_positive if any(std > 0 for std in stds_positive) else None,
+            marker="o",
+            markersize=MARKER_SIZE,
+            linewidth=LINE_WIDTH,
+            capsize=CAPSIZE,
+            capthick=CAPTHICK,
+            label=f"Feudal HRM (P={main_period})",
+            color=COLORS["primary"],
+            elinewidth=ERROR_LINE_WIDTH,
+            zorder=3,
+            markeredgecolor="white",
+            markeredgewidth=MARKER_EDGE_WIDTH,
         )
 
-        if not period_weights:
-            print(
-                f"⚠️  No {metric_name} data for period {period}. Skipping this period."
-            )
+    # Plot λ=0 separately with special label
+    if w0_idx is not None:
+        ax.plot(
+            0.0,
+            means[w0_idx],
+            marker="s",  # Square marker to distinguish
+            markersize=MARKER_SIZE,
+            color=COLORS["lambda_zero"],
+            markeredgecolor="black",
+            markeredgewidth=MARKER_EDGE_WIDTH,
+            zorder=4,
+            label=format_lambda_zero_label(),
+        )
+
+    # Find and highlight optimal weight (best metric for λ>0)
+    higher_is_better = metric_name == "accuracy"
+    best_weight = None
+    best_value = None
+
+    for weight, mean in zip(valid_weights, means):
+        if weight <= 0:  # Skip λ=0 for optimal
             continue
+        if best_value is None:
+            best_value = mean
+            best_weight = weight
+        elif higher_is_better and mean > best_value:
+            best_value = mean
+            best_weight = weight
+        elif not higher_is_better and mean < best_value:
+            best_value = mean
+            best_weight = weight
 
-        # Compute statistics for each weight
-        means = []
-        stds = []
-        valid_weights = []
+    if best_weight is not None:
+        # Plot optimal marker (star) - no legend entry
+        ax.plot(
+            best_weight,
+            best_value,
+            marker="*",
+            markersize=MARKER_SIZE_HIGHLIGHT,
+            color=COLORS["optimal"],
+            markeredgecolor=COLORS["optimal_edge"],
+            markeredgewidth=1.5,
+            zorder=10,
+            label="_nolegend_",  # Exclude from legend
+        )
 
-        for weight in period_weights:
-            values = period_data[weight][metric_name]
-            if not values:
-                continue
-
-            mean, std, _ = compute_statistics(values)
-            if mean is not None:
-                means.append(mean)
-                stds.append(std)
-                valid_weights.append(weight)
-
-        if not valid_weights:
-            continue
-
-        # Choose color
-        color = colors.get(period, "#6366F1")
-
-        # Choose label
-        if period == main_period:
-            label = f"Feudal (Period={period})"
-        else:
-            # Label single-run points clearly
-            label = f"Period={period} (single run)"
-
-        # Separate w=0 from w>0 for proper labeling
-        w0_idx = None
-        if 0.0 in valid_weights:
-            w0_idx = valid_weights.index(0.0)
-
-        # Plot w>0 curve
-        w_positive = [w for w in valid_weights if w > 0]
-        means_positive = [means[i] for i, w in enumerate(valid_weights) if w > 0]
-        stds_positive = [stds[i] for i, w in enumerate(valid_weights) if w > 0]
-
-        if w_positive:
-            ax.errorbar(
-                w_positive,
-                means_positive,
-                yerr=stds_positive if any(std > 0 for std in stds_positive) else None,
-                marker="o",
-                markersize=10 if period == main_period else 8,
-                linewidth=2.5 if period == main_period else 2,
-                capsize=6,
-                capthick=2,
-                label=label,
-                color=color,
-                elinewidth=2,
-                zorder=3 if period == main_period else 2,
-                markeredgecolor="white",
-                markeredgewidth=1.5,
-            )
-
-        # Plot w=0 separately with special label
-        if w0_idx is not None:
-            ax.plot(
-                0.0,
-                means[w0_idx],
-                marker="s",  # Square marker to distinguish
-                markersize=10,
-                color="#9CA3AF",  # Gray
-                markeredgecolor="black",
-                markeredgewidth=1.5,
-                zorder=4,
-                label=(
-                    "Feudal model, w=0 (head present)"
-                    if period == main_period
-                    else None
-                ),
-            )
-
-    # Highlight optimal weight (best metric for main period)
-    if main_period in feudal_data:
-        main_data = feudal_data[main_period]
-        best_weight = None
-        best_value = None
-
-        # Determine if higher is better (accuracy) or lower is better (loss)
-        higher_is_better = metric_name == "accuracy"
-
-        for weight in weights:
-            values = main_data.get(weight, {}).get(metric_name, [])
-            if values:
-                mean = np.mean(values)
-                # Handle w=0 specially - it's feudal model with head present, not true baseline
-                if weight == 0.0:
-                    # Plot w=0 point with special label
-                    ax.plot(
-                        weight,
-                        mean,
-                        marker="s",  # Square marker to distinguish
-                        markersize=10,
-                        color="#9CA3AF",  # Gray
-                        markeredgecolor="black",
-                        markeredgewidth=1.5,
-                        zorder=4,
-                        label="Feudal model, w=0 (head present)",
-                    )
-                elif weight > 0:  # Only consider w>0 for optimal
-                    if best_value is None:
-                        best_value = mean
-                        best_weight = weight
-                    elif higher_is_better and mean > best_value:
-                        best_value = mean
-                        best_weight = weight
-                    elif not higher_is_better and mean < best_value:
-                        best_value = mean
-                        best_weight = weight
-
-        if best_weight is not None:
-            ax.plot(
-                best_weight,
-                best_value,
-                marker="*",
-                markersize=25,
-                color="#FBBF24",  # Amber-400
-                markeredgecolor="#92400E",  # Amber-800
-                markeredgewidth=2,
-                zorder=10,
-                label="Optimal Weight",
-            )
-
-            # Add annotation
-            metric_label = "Accuracy" if metric_name == "accuracy" else "Loss"
-            ax.annotate(
-                f"Best: w={best_weight}\n{metric_label}={best_value:.4f}",
-                xy=(best_weight, best_value),
-                xytext=(15, 25),
-                textcoords="offset points",
-                bbox=dict(
-                    boxstyle="round,pad=0.8",
-                    facecolor="#FEF3C7",
-                    edgecolor="#92400E",
-                    linewidth=1.5,
-                    alpha=0.9,
-                ),
-                arrowprops=dict(
-                    arrowstyle="->",
-                    connectionstyle="arc3,rad=0.2",
-                    color="#92400E",
-                    lw=1.5,
-                ),
-                fontsize=10,
-                fontweight="bold",
-                ha="left",
-            )
+        # Add annotation - positioned to avoid overlap with star
+        metric_label = "Accuracy" if metric_name == "accuracy" else "Loss"
+        ax.annotate(
+            f"Optimal: λ={best_weight}\n{metric_label}={best_value:.4f}",
+            xy=(best_weight, best_value),
+            xytext=(25, 35),  # Move further away from star marker
+            textcoords="offset points",
+            bbox=dict(
+                boxstyle="round,pad=0.5",
+                facecolor=COLORS["annotation_bg"],
+                edgecolor=COLORS["annotation_edge"],
+                linewidth=1.2,
+                alpha=0.98,
+            ),
+            arrowprops=dict(
+                arrowstyle="->",
+                connectionstyle="arc3,rad=0.2",
+                color=COLORS["annotation_edge"],
+                lw=1.2,
+            ),
+            fontsize=FONT_ANNOTATION,
+            fontweight="bold",
+            ha="left",
+        )
 
     # Formatting
-    ax.set_xlabel("Feudal Loss Weight", fontsize=13, fontweight="bold")
-    ax.set_ylabel(ylabel, fontsize=13, fontweight="bold")
+    ax.set_xlabel("Feudal Loss Weight (λ)")
+    ax.set_ylabel(ylabel)
 
     title = f"Feudal Weight Sweep (Period={main_period})"
-    if baseline_mean is not None:
-        title += f"\n(HRM baseline: {baseline_mean:.4f})"
+    ax.set_title(title)
 
-    # Add n values subtitle
+    ax.set_xticks(valid_weights)
+
+    # Legend in upper right corner
+    ax.legend(loc="upper right", framealpha=0.95)
+
+    # Add footnote for sample sizes and single-run info
     baseline_n = len(baseline_values) if baseline_values else 0
-    # Count feudal replications (best config)
-    feudal_n = 0
-    if main_period in feudal_data:
-        best_weight = 0.05  # Best config
-        if best_weight in feudal_data[main_period]:
-            feudal_n = len(feudal_data[main_period][best_weight].get(metric_name, []))
+    footnote_parts = [f"Baseline: n={baseline_n}"]
 
-    subtitle = f"Each point: 1 run (unless noted); HRM baseline: n={baseline_n}"
-    if feudal_n > 0:
-        subtitle += f"; Best-feudal: n={feudal_n}"
+    if single_run_weights:
+        single_run_positive = [w for w in single_run_weights if w > 0]
+        if single_run_positive:
+            footnote_parts.append(f"Single-run λ values: {single_run_positive}")
 
-    ax.set_title(title, fontsize=15, fontweight="bold", pad=20)
-    ax.text(
-        0.5,
-        -0.08,
-        subtitle,
-        transform=ax.transAxes,
-        ha="center",
-        fontsize=9,
-        style="italic",
-        alpha=0.7,
-    )
-
-    ax.set_xticks(weights)
-    ax.grid(True, alpha=0.3, linestyle="--", zorder=0)
-    ax.legend(loc="best", fontsize=11, framealpha=0.95)
-
-    plt.tight_layout()
+    add_footnote(ax, " | ".join(footnote_parts))
 
     # Save plot
     output_file = output_dir / f"feudal_weight_sweep_{metric_name}.png"
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_file, dpi=300, bbox_inches="tight")
-    print(f"✅ Saved plot: {output_file}")
+    save_figure(fig, output_file)
 
     plt.close()
 
@@ -478,13 +409,6 @@ def main():
         type=int,
         default=3,
         help="Primary manager period to plot (default: 3)",
-    )
-    parser.add_argument(
-        "--additional-periods",
-        type=int,
-        nargs="+",
-        default=None,
-        help="Additional periods to show (e.g., 1 6)",
     )
     parser.add_argument(
         "--output-dir",
@@ -513,7 +437,6 @@ def main():
         baseline_data,
         args.output_dir,
         primary_period=args.primary_period,
-        additional_periods=args.additional_periods,
         metric_name="lm_loss",
         ylabel="Language Model Loss (lower is better)",
     )
@@ -524,7 +447,6 @@ def main():
         baseline_data,
         args.output_dir,
         primary_period=args.primary_period,
-        additional_periods=args.additional_periods,
         metric_name="accuracy",
         ylabel="Accuracy (higher is better)",
     )

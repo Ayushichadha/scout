@@ -5,9 +5,9 @@ Create replication distribution plot: baseline vs best-feudal.
 Purpose: Show that results are "not noise" - demonstrate statistical significance.
 
 Features:
-- Box/violin + swarm plot (best option)
-- Or two-column beeswarm plot
-- Groups: Baseline vs (P=3, λ=0.05)
+- Box/violin + swarm plot
+- Groups: Baseline vs Best-Feudal (P=3, λ=0.05)
+- Clean statistics annotation (n, mean±std)
 """
 
 import json
@@ -16,6 +16,17 @@ from pathlib import Path
 from typing import List, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Import shared style
+from plot_style import (
+    apply_style,
+    COLORS,
+    MARKER_EDGE_WIDTH,
+    FONT_TICK,
+    FONT_ANNOTATION,
+    save_figure,
+    add_footnote,
+)
 
 try:
     from scipy import stats
@@ -96,6 +107,8 @@ def plot_replication_distribution(
     metric_name: str = "lm_loss",
     ylabel: str = "Language Model Loss (lower is better)",
     title: str = "Replication Distribution: Baseline vs Best-Feudal",
+    feudal_period: int = 3,
+    feudal_weight: float = 0.05,
 ):
     """
     Create replication distribution plot with box/violin + swarm.
@@ -114,29 +127,8 @@ def plot_replication_distribution(
         )
         return
 
-    # Prepare data for plotting
-    data = []
-    labels = []
-
-    # Baseline data
-    for val in baseline_values:
-        data.append(val)
-        labels.append("Baseline")
-
-    # Feudal data
-    for val in feudal_values:
-        data.append(val)
-        labels.append("Best-Feudal\n(P=3, λ=0.05)")
-
-    # Create figure
-    try:
-        plt.style.use("seaborn-v0_8-whitegrid")
-    except OSError:
-        try:
-            plt.style.use("seaborn-whitegrid")
-        except OSError:
-            pass
-
+    # Apply consistent style
+    apply_style()
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # Create violin plot
@@ -149,129 +141,136 @@ def plot_replication_distribution(
         showextrema=True,
     )
 
-    # Style the violin plot
+    # Style the violin plot - lighter fill
     for pc in parts["bodies"]:
-        pc.set_facecolor("#E5E7EB")
-        pc.set_alpha(0.6)
-        pc.set_edgecolor("black")
-        pc.set_linewidth(1.5)
+        pc.set_facecolor("#E5E7EB")  # Gray-200
+        pc.set_alpha = 0.5
+        pc.set_edgecolor("#9CA3AF")  # Gray-400
+        pc.set_linewidth(1.0)
 
     # Style the parts
     for partname in ("cbars", "cmins", "cmaxes", "cmeans", "cmedians"):
         if partname in parts:
-            parts[partname].set_color("black")
-            parts[partname].set_linewidth(1.5)
+            parts[partname].set_color("#6B7280")  # Gray-500
+            parts[partname].set_linewidth(1.2)
 
     # Add box plot on top
     bp = ax.boxplot(
         [baseline_values, feudal_values],
         positions=[0, 1],
-        widths=0.3,
+        widths=0.25,
         patch_artist=True,
         showfliers=False,  # We'll show individual points with swarm
     )
 
     # Style box plot
-    colors = ["#6B7280", "#8B5CF6"]  # Gray for baseline, Purple for feudal
+    colors = [COLORS["box_baseline"], COLORS["box_feudal"]]
     for patch, color in zip(bp["boxes"], colors):
         patch.set_facecolor(color)
         patch.set_alpha(0.7)
-        patch.set_edgecolor("black")
-        patch.set_linewidth(1.5)
+        patch.set_edgecolor("#374151")  # Gray-700
+        patch.set_linewidth(1.2)
 
     # Style other box plot elements
     for element in ["whiskers", "fliers", "means", "medians", "caps"]:
         if element in bp:
             for item in bp[element]:
-                item.set_color("black")
-                item.set_linewidth(1.5)
+                item.set_color("#374151")
+                item.set_linewidth(1.2)
 
     # Add swarm plot (individual points)
-    # Jitter the x positions slightly
-    x_baseline = np.random.normal(0, 0.05, len(baseline_values))
-    x_feudal = np.random.normal(1, 0.05, len(feudal_values))
+    np.random.seed(42)  # For reproducibility
+    x_baseline = np.random.normal(0, 0.04, len(baseline_values))
+    x_feudal = np.random.normal(1, 0.04, len(feudal_values))
 
     ax.scatter(
         x_baseline,
         baseline_values,
-        color="#374151",
-        s=80,
-        alpha=0.7,
+        color=COLORS["scatter_baseline"],
+        s=60,
+        alpha=0.8,
         edgecolors="white",
-        linewidths=1.5,
+        linewidths=MARKER_EDGE_WIDTH,
         zorder=10,
-        label="Baseline",
     )
     ax.scatter(
         x_feudal,
         feudal_values,
-        color="#7C3AED",
-        s=80,
-        alpha=0.7,
+        color=COLORS["scatter_feudal"],
+        s=60,
+        alpha=0.8,
         edgecolors="white",
-        linewidths=1.5,
+        linewidths=MARKER_EDGE_WIDTH,
         zorder=10,
-        label="Best-Feudal",
     )
 
     # Set labels and title
     ax.set_xticks([0, 1])
     ax.set_xticklabels(
         [
-            f"Baseline\n(n={len(baseline_values)})",
-            f"Best-Feudal\n(P=3, λ=0.05)\n(n={len(feudal_values)})",
+            "HRM Baseline\n(no subgoal head)",
+            f"Best-Feudal\n(P={feudal_period}, λ={feudal_weight})",
         ],
-        fontsize=12,
+        fontsize=FONT_TICK,
         fontweight="bold",
     )
-    ax.set_ylabel(ylabel, fontsize=13, fontweight="bold")
-    ax.set_title(title, fontsize=15, fontweight="bold", pad=20)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
 
-    # Add grid
-    ax.grid(True, alpha=0.3, linestyle="--", axis="y")
-
-    # Add statistics text
+    # Compute statistics
     baseline_mean = np.mean(baseline_values)
     baseline_std = np.std(baseline_values, ddof=1) if len(baseline_values) > 1 else 0
     feudal_mean = np.mean(feudal_values)
     feudal_std = np.std(feudal_values, ddof=1) if len(feudal_values) > 1 else 0
 
-    stats_text = f"Baseline (n={len(baseline_values)}): {baseline_mean:.4f} ± {baseline_std:.4f}\n"
-    stats_text += (
-        f"Best-Feudal (n={len(feudal_values)}): {feudal_mean:.4f} ± {feudal_std:.4f}"
-    )
-    if len(baseline_values) < 3:
-        stats_text += "\n\nNote: Baseline has limited replications (n=2);\nresults are indicative."
-
-    # Add statistical test if scipy is available
+    # Compute p-value if scipy is available
+    p_value_text = ""
     if HAS_SCIPY and len(baseline_values) > 1 and len(feudal_values) > 1:
-        # Perform t-test
         t_stat, p_value = stats.ttest_ind(baseline_values, feudal_values)
-        stats_text += f"\np-value: {p_value:.4f}"
-        if p_value < 0.05:
-            stats_text += " *"
-        if p_value < 0.01:
-            stats_text += "*"
+        sig_stars = ""
         if p_value < 0.001:
-            stats_text += "*"
+            sig_stars = "***"
+        elif p_value < 0.01:
+            sig_stars = "**"
+        elif p_value < 0.05:
+            sig_stars = "*"
+        p_value_text = f"  (p={p_value:.3f}{sig_stars})"
+
+    # Add compact statistics annotation in upper left
+    stats_text = (
+        f"Baseline: n={len(baseline_values)}, {baseline_mean:.4f}±{baseline_std:.4f}\n"
+        f"Feudal: n={len(feudal_values)}, {feudal_mean:.4f}±{feudal_std:.4f}"
+        f"{p_value_text}"
+    )
 
     ax.text(
         0.02,
         0.98,
         stats_text,
         transform=ax.transAxes,
-        fontsize=10,
+        fontsize=FONT_ANNOTATION,
         verticalalignment="top",
-        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+        fontfamily="monospace",
+        bbox=dict(
+            boxstyle="round,pad=0.4",
+            facecolor="white",
+            edgecolor="#E5E7EB",
+            alpha=0.95,
+        ),
     )
 
-    plt.tight_layout()
+    # Add footnote if baseline has limited samples
+    footnote = ""
+    if len(baseline_values) < 3:
+        footnote = "Note: Baseline has limited replications; results are indicative."
+
+    if footnote:
+        add_footnote(ax, footnote)
 
     # Save plot
     output_file = output_dir / f"replication_distribution_{metric_name}.png"
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_file, dpi=300, bbox_inches="tight")
-    print(f"✅ Saved plot: {output_file}")
+    save_figure(fig, output_file)
 
     plt.close()
 
@@ -337,6 +336,8 @@ def main():
         metric_name="lm_loss",
         ylabel="Language Model Loss (lower is better)",
         title="Replication Distribution: Baseline vs Best-Feudal",
+        feudal_period=args.feudal_period,
+        feudal_weight=args.feudal_weight,
     )
 
     print("\n✅ Plot generated!")

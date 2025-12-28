@@ -10,7 +10,6 @@ Features:
 - y-axis: primary metric (final eval loss or accuracy)
 - lines: Baseline (no feudal) as horizontal reference + Feudal curve
 - error bars: mean ± std across seeds (or 95% CI if available)
-- Separate plots for Loss and Accuracy
 """
 
 import json
@@ -19,6 +18,25 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
+
+# Import shared style
+from plot_style import (
+    apply_style,
+    COLORS,
+    FIGSIZE,
+    LINE_WIDTH,
+    LINE_WIDTH_REFERENCE,
+    MARKER_SIZE,
+    MARKER_SIZE_HIGHLIGHT,
+    MARKER_EDGE_WIDTH,
+    CAPSIZE,
+    CAPTHICK,
+    ERROR_LINE_WIDTH,
+    FONT_ANNOTATION,
+    save_figure,
+    add_footnote,
+    format_baseline_label,
+)
 
 try:
     from scipy import stats
@@ -163,6 +181,7 @@ def plot_manager_period_sweep(
     feudal_stds = []
     feudal_cis = []
     valid_periods = []
+    single_run_periods = []  # Track periods with only 1 run
 
     for period in periods:
         values = feudal_data[period][metric_name]
@@ -175,6 +194,8 @@ def plot_manager_period_sweep(
             feudal_stds.append(std)
             feudal_cis.append(ci)
             valid_periods.append(period)
+            if len(values) == 1:
+                single_run_periods.append(period)
 
     if not valid_periods:
         print(f"⚠️  No valid {metric_name} data. Skipping plot.")
@@ -189,58 +210,46 @@ def plot_manager_period_sweep(
     if baseline_values:
         baseline_mean, baseline_std, baseline_ci = compute_statistics(baseline_values)
 
-    # Create figure with better styling
-    try:
-        plt.style.use("seaborn-v0_8-whitegrid")
-    except OSError:
-        try:
-            plt.style.use("seaborn-whitegrid")
-        except OSError:
-            pass  # Use default style
-
-    fig, ax = plt.subplots(figsize=(10, 7))
+    # Apply consistent style
+    apply_style()
+    fig, ax = plt.subplots(figsize=FIGSIZE)
 
     # Plot baseline as horizontal reference line
     if baseline_mean is not None:
         ax.axhline(
             y=baseline_mean,
-            color="#6B7280",  # Gray-600
+            color=COLORS["baseline"],
             linestyle="--",
-            linewidth=2.5,
-            label="HRM baseline (no feudal head)",
-            alpha=0.8,
+            linewidth=LINE_WIDTH_REFERENCE,
+            label=format_baseline_label(),
             zorder=1,
         )
 
-        # Add error band for baseline if we have multiple runs (lighter shading)
+        # Add subtle error band for baseline if we have multiple runs
         if len(baseline_values) > 1 and baseline_std is not None:
             ax.fill_between(
                 [min(valid_periods) - 0.5, max(valid_periods) + 0.5],
                 baseline_mean - baseline_std,
                 baseline_mean + baseline_std,
-                color="#6B7280",
-                alpha=0.08,  # Lighter shading
+                color=COLORS["baseline_fill"],
+                alpha=0.12,
                 zorder=0,
             )
 
-    # Plot feudal curve
+    # Determine error bars
     use_ci = any(ci is not None for ci in feudal_cis) and len(baseline_values) >= 3
 
-    # Determine error bars
     if use_ci and any(ci is not None for ci in feudal_cis):
-        # Use 95% CI error bars
         errors = [
             ci if ci is not None else std for ci, std in zip(feudal_cis, feudal_stds)
         ]
-        error_label = "Feudal (95% CI)"
+        curve_label = "Feudal HRM (95% CI)"
     elif any(std > 0 for std in feudal_stds):
-        # Use std error bars
         errors = feudal_stds
-        error_label = "Feudal (±std)"
+        curve_label = "Feudal HRM (±std)"
     else:
-        # No error bars
         errors = None
-        error_label = "Feudal"
+        curve_label = "Feudal HRM"
 
     # Plot the main curve
     ax.errorbar(
@@ -248,104 +257,92 @@ def plot_manager_period_sweep(
         feudal_means,
         yerr=errors,
         marker="o",
-        markersize=10,
-        linewidth=2.5,
-        capsize=6,
-        capthick=2,
-        label=error_label,
-        color="#8B5CF6",  # Purple-500
-        elinewidth=2,
+        markersize=MARKER_SIZE,
+        linewidth=LINE_WIDTH,
+        capsize=CAPSIZE,
+        capthick=CAPTHICK,
+        label=curve_label,
+        color=COLORS["primary"],
+        elinewidth=ERROR_LINE_WIDTH,
         zorder=3,
         markeredgecolor="white",
-        markeredgewidth=1.5,
+        markeredgewidth=MARKER_EDGE_WIDTH,
     )
 
-    # Highlight the sweet spot (period 3)
-    if 3 in valid_periods:
-        idx = valid_periods.index(3)
-        ax.plot(
-            valid_periods[idx],
-            feudal_means[idx],
-            marker="*",
-            markersize=25,
-            color="#FBBF24",  # Amber-400
-            markeredgecolor="#92400E",  # Amber-800
-            markeredgewidth=2,
-            zorder=10,
-            label="Sweet Spot (Period=3)",
-        )
+    # Find and highlight the optimal point (best metric)
+    higher_is_better = metric_name == "accuracy"
+    if higher_is_better:
+        best_idx = np.argmax(feudal_means)
+    else:
+        best_idx = np.argmin(feudal_means)
+
+    best_period = valid_periods[best_idx]
+    best_value = feudal_means[best_idx]
+
+    # Plot optimal marker (star) - no legend entry
+    ax.plot(
+        best_period,
+        best_value,
+        marker="*",
+        markersize=MARKER_SIZE_HIGHLIGHT,
+        color=COLORS["optimal"],
+        markeredgecolor=COLORS["optimal_edge"],
+        markeredgewidth=1.5,
+        zorder=10,
+        label="_nolegend_",  # Exclude from legend
+    )
+
+    # Add annotation for optimal point - positioned to avoid overlap with star
+    metric_label = "Accuracy" if metric_name == "accuracy" else "Loss"
+    ax.annotate(
+        f"Optimal: P={best_period}\n{metric_label}={best_value:.4f}",
+        xy=(best_period, best_value),
+        xytext=(25, 35),  # Move further away from star marker
+        textcoords="offset points",
+        bbox=dict(
+            boxstyle="round,pad=0.5",
+            facecolor=COLORS["annotation_bg"],
+            edgecolor=COLORS["annotation_edge"],
+            linewidth=1.2,
+            alpha=0.98,
+        ),
+        arrowprops=dict(
+            arrowstyle="->",
+            connectionstyle="arc3,rad=0.2",
+            color=COLORS["annotation_edge"],
+            lw=1.2,
+        ),
+        fontsize=FONT_ANNOTATION,
+        fontweight="bold",
+        ha="left",
+    )
 
     # Formatting
-    ax.set_xlabel("Manager Period", fontsize=13, fontweight="bold")
-    ax.set_ylabel(ylabel, fontsize=13, fontweight="bold")
+    ax.set_xlabel("Manager Period")
+    ax.set_ylabel(ylabel)
 
     title = f"Manager Period Sweep{title_suffix}"
-    if baseline_mean is not None:
-        title += f"\n(HRM baseline: {baseline_mean:.4f})"
-
-    # Add n values subtitle
-    baseline_n = len(baseline_values) if baseline_values else 0
-    # Count feudal replications (best config at period=3)
-    feudal_n = 0
-    if 3 in feudal_data:
-        feudal_n = len(feudal_data[3].get(metric_name, []))
-
-    subtitle = f"Each point: 1 run (unless noted); HRM baseline: n={baseline_n}"
-    if feudal_n > 0:
-        subtitle += f"; Best-feudal (P=3): n={feudal_n}"
-
-    ax.set_title(title, fontsize=15, fontweight="bold", pad=20)
-    ax.text(
-        0.5,
-        -0.08,
-        subtitle,
-        transform=ax.transAxes,
-        ha="center",
-        fontsize=9,
-        style="italic",
-        alpha=0.7,
-    )
+    ax.set_title(title)
 
     ax.set_xticks(valid_periods)
-    ax.grid(True, alpha=0.3, linestyle="--", zorder=0)
-    ax.legend(loc="best", fontsize=11, framealpha=0.95)
 
-    # Add annotation for sweet spot
-    if 3 in valid_periods:
-        idx = valid_periods.index(3)
-        best_value = feudal_means[idx]
-        metric_label = ylabel.split("(")[0].strip()
-        ax.annotate(
-            f"Best: Period=3\n{metric_label}={best_value:.4f}",
-            xy=(3, best_value),
-            xytext=(15, 25),
-            textcoords="offset points",
-            bbox=dict(
-                boxstyle="round,pad=0.8",
-                facecolor="#FEF3C7",  # Amber-100
-                edgecolor="#92400E",  # Amber-800
-                linewidth=1.5,
-                alpha=0.9,
-            ),
-            arrowprops=dict(
-                arrowstyle="->",
-                connectionstyle="arc3,rad=0.2",
-                color="#92400E",
-                lw=1.5,
-            ),
-            fontsize=10,
-            fontweight="bold",
-            ha="left",
-        )
+    # Legend in upper right corner (out of the way)
+    ax.legend(loc="upper right", framealpha=0.95)
 
-    plt.tight_layout()
+    # Add footnote for sample sizes and single-run info
+    baseline_n = len(baseline_values) if baseline_values else 0
+    footnote_parts = [f"Baseline: n={baseline_n}"]
+
+    if single_run_periods:
+        footnote_parts.append(f"Single-run periods: {single_run_periods}")
+
+    add_footnote(ax, " | ".join(footnote_parts))
 
     # Save plot
     metric_file = metric_name.replace("_", "_")
     output_file = output_dir / f"manager_period_sweep_{metric_file}.png"
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_file, dpi=300, bbox_inches="tight")
-    print(f"✅ Saved plot: {output_file}")
+    save_figure(fig, output_file)
 
     plt.close()
 
@@ -385,30 +382,19 @@ def main():
     print(f"Found feudal data for periods: {sorted(feudal_data.keys())}")
     print(f"Found baseline runs: {len(baseline_data.get('lm_loss', []))}")
 
-    # Create plots
-    print("\nGenerating plots...")
+    # Create plots - ONLY lm_loss (main metric)
+    print("\nGenerating plot...")
 
-    # Plot 1: Loss
     plot_manager_period_sweep(
         feudal_data,
         baseline_data,
         args.output_dir,
         metric_name="lm_loss",
         ylabel="Language Model Loss (lower is better)",
-        title_suffix=" - Loss",
+        title_suffix="",
     )
 
-    # Plot 2: Accuracy (if available)
-    plot_manager_period_sweep(
-        feudal_data,
-        baseline_data,
-        args.output_dir,
-        metric_name="accuracy",
-        ylabel="Accuracy (higher is better)",
-        title_suffix=" - Accuracy",
-    )
-
-    print("\n✅ All plots generated!")
+    print("\n✅ Plot generated!")
 
 
 if __name__ == "__main__":
