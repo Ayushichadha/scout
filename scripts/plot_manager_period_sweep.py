@@ -207,19 +207,19 @@ def plot_manager_period_sweep(
             color="#6B7280",  # Gray-600
             linestyle="--",
             linewidth=2.5,
-            label="Baseline (no feudal)",
+            label="HRM baseline (no feudal head)",
             alpha=0.8,
             zorder=1,
         )
 
-        # Add error band for baseline if we have multiple runs
+        # Add error band for baseline if we have multiple runs (lighter shading)
         if len(baseline_values) > 1 and baseline_std is not None:
             ax.fill_between(
                 [min(valid_periods) - 0.5, max(valid_periods) + 0.5],
                 baseline_mean - baseline_std,
                 baseline_mean + baseline_std,
                 color="#6B7280",
-                alpha=0.15,
+                alpha=0.08,  # Lighter shading
                 zorder=0,
             )
 
@@ -281,8 +281,30 @@ def plot_manager_period_sweep(
 
     title = f"Manager Period Sweep{title_suffix}"
     if baseline_mean is not None:
-        title += f"\n(Baseline: {baseline_mean:.4f})"
+        title += f"\n(HRM baseline: {baseline_mean:.4f})"
+
+    # Add n values subtitle
+    baseline_n = len(baseline_values) if baseline_values else 0
+    # Count feudal replications (best config at period=3)
+    feudal_n = 0
+    if 3 in feudal_data:
+        feudal_n = len(feudal_data[3].get(metric_name, []))
+
+    subtitle = f"Each point: 1 run (unless noted); HRM baseline: n={baseline_n}"
+    if feudal_n > 0:
+        subtitle += f"; Best-feudal (P=3): n={feudal_n}"
+
     ax.set_title(title, fontsize=15, fontweight="bold", pad=20)
+    ax.text(
+        0.5,
+        -0.08,
+        subtitle,
+        transform=ax.transAxes,
+        ha="center",
+        fontsize=9,
+        style="italic",
+        alpha=0.7,
+    )
 
     ax.set_xticks(valid_periods)
     ax.grid(True, alpha=0.3, linestyle="--", zorder=0)

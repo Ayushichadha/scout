@@ -138,21 +138,35 @@ def create_heatmap(
         # Fallback for older matplotlib
         cmap = plt.cm.get_cmap(cmap_name)
 
-    # Create heatmap with better colormap scaling
+    # Create scatter grid (only show evaluated cells, no ghost grid)
     vmin = np.nanmin(grid_matrix)
     vmax = np.nanmax(grid_matrix)
 
-    im = ax.imshow(
-        grid_matrix,
-        aspect="auto",
-        cmap=cmap,
-        interpolation="nearest",
-        origin="upper",
-        vmin=vmin,
-        vmax=vmax,
-    )
+    # Plot only evaluated cells as colored squares
+    for i, weight in enumerate(weights):
+        for j, period in enumerate(periods):
+            value = grid_matrix[i, j]
+            if not np.isnan(value):
+                # Normalize value for colormap
+                normalized_value = (
+                    (value - vmin) / (vmax - vmin) if vmax > vmin else 0.5
+                )
+                color = cmap(normalized_value)
 
-    # Set ticks and labels
+                # Draw square for this cell
+                ax.add_patch(
+                    plt.Rectangle(
+                        (j - 0.4, i - 0.4),
+                        0.8,
+                        0.8,
+                        facecolor=color,
+                        edgecolor="white",
+                        linewidth=1.5,
+                        zorder=2,
+                    )
+                )
+
+    # Set ticks and labels (only show actual values)
     ax.set_xticks(np.arange(len(periods)))
     ax.set_xticklabels(periods, fontsize=11)
     ax.set_yticks(np.arange(len(weights)))
@@ -167,24 +181,24 @@ def create_heatmap(
             weight_labels.append(f"{w:.2f}")
     ax.set_yticklabels(weight_labels, fontsize=11)
 
+    # Set axis limits to show only the data range
+    ax.set_xlim(-0.5, len(periods) - 0.5)
+    ax.set_ylim(-0.5, len(weights) - 0.5)
+
+    # Create a ScalarMappable for colorbar (from the colormap)
+    from matplotlib.cm import ScalarMappable
+
+    sm = ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
+    sm.set_array([])
+
     ax.set_xlabel(xlabel, fontsize=13, fontweight="bold")
     ax.set_ylabel(ylabel, fontsize=13, fontweight="bold")
     ax.set_title(title, fontsize=15, fontweight="bold", pad=20)
 
     # Add colorbar
-    cbar = plt.colorbar(im, ax=ax)
+    cbar = plt.colorbar(sm, ax=ax)
     metric_label = "Loss" if metric_name == "lm_loss" else "Accuracy"
     cbar.set_label(metric_label, fontsize=12, fontweight="bold")
-
-    # Add legend for missing cells
-    from matplotlib.patches import Patch
-
-    legend_elements = [
-        Patch(
-            facecolor="lightgray", edgecolor="white", alpha=0.3, label="Not evaluated"
-        )
-    ]
-    ax.legend(handles=legend_elements, loc="upper right", fontsize=10, framealpha=0.9)
 
     # Add text annotations for each cell
     for i, weight in enumerate(weights):
@@ -223,42 +237,9 @@ def create_heatmap(
                     fontsize=9,
                     fontweight="bold",
                 )
-            else:
-                # Mark missing data with a subtle background
-                ax.add_patch(
-                    plt.Rectangle(
-                        (j - 0.5, i - 0.5),
-                        1,
-                        1,
-                        fill=True,
-                        facecolor="lightgray",
-                        edgecolor="white",
-                        linewidth=1,
-                        alpha=0.3,
-                        zorder=0,
-                    )
-                )
-                ax.text(
-                    j,
-                    i,
-                    "—",
-                    ha="center",
-                    va="center",
-                    color="gray",
-                    fontsize=14,
-                    fontweight="bold",
-                    alpha=0.6,
-                )
+            # Missing cells are left blank (no ghost grid)
 
-    # Add legend for missing data
-    from matplotlib.patches import Patch
-
-    legend_elements = [
-        Patch(
-            facecolor="lightgray", alpha=0.3, edgecolor="white", label="Not evaluated"
-        ),
-    ]
-    ax.legend(handles=legend_elements, loc="upper right", fontsize=10, framealpha=0.9)
+    # No legend needed - blank cells are self-explanatory (scatter grid approach)
 
     plt.tight_layout()
 

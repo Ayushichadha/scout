@@ -240,6 +240,8 @@ def plot_replication_distribution(
     stats_text += (
         f"Best-Feudal (n={len(feudal_values)}): {feudal_mean:.4f} ± {feudal_std:.4f}"
     )
+    if len(baseline_values) < 3:
+        stats_text += "\n\nNote: Baseline has limited replications (n=2);\nresults are indicative."
 
     # Add statistical test if scipy is available
     if HAS_SCIPY and len(baseline_values) > 1 and len(feudal_values) > 1:

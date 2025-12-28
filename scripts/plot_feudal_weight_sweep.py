@@ -218,7 +218,7 @@ def plot_feudal_weight_sweep(
             color="#6B7280",  # Gray-600
             linestyle="--",
             linewidth=2.5,
-            label="Baseline (weight=0)",
+            label="HRM baseline (no feudal head)",
             alpha=0.8,
             zorder=1,
         )
@@ -287,23 +287,51 @@ def plot_feudal_weight_sweep(
             # Label single-run points clearly
             label = f"Period={period} (single run)"
 
-        # Plot curve
-        ax.errorbar(
-            valid_weights,
-            means,
-            yerr=stds if any(std > 0 for std in stds) else None,
-            marker="o",
-            markersize=10 if period == main_period else 8,
-            linewidth=2.5 if period == main_period else 2,
-            capsize=6,
-            capthick=2,
-            label=label,
-            color=color,
-            elinewidth=2,
-            zorder=3 if period == main_period else 2,
-            markeredgecolor="white",
-            markeredgewidth=1.5,
-        )
+        # Separate w=0 from w>0 for proper labeling
+        w0_idx = None
+        if 0.0 in valid_weights:
+            w0_idx = valid_weights.index(0.0)
+
+        # Plot w>0 curve
+        w_positive = [w for w in valid_weights if w > 0]
+        means_positive = [means[i] for i, w in enumerate(valid_weights) if w > 0]
+        stds_positive = [stds[i] for i, w in enumerate(valid_weights) if w > 0]
+
+        if w_positive:
+            ax.errorbar(
+                w_positive,
+                means_positive,
+                yerr=stds_positive if any(std > 0 for std in stds_positive) else None,
+                marker="o",
+                markersize=10 if period == main_period else 8,
+                linewidth=2.5 if period == main_period else 2,
+                capsize=6,
+                capthick=2,
+                label=label,
+                color=color,
+                elinewidth=2,
+                zorder=3 if period == main_period else 2,
+                markeredgecolor="white",
+                markeredgewidth=1.5,
+            )
+
+        # Plot w=0 separately with special label
+        if w0_idx is not None:
+            ax.plot(
+                0.0,
+                means[w0_idx],
+                marker="s",  # Square marker to distinguish
+                markersize=10,
+                color="#9CA3AF",  # Gray
+                markeredgecolor="black",
+                markeredgewidth=1.5,
+                zorder=4,
+                label=(
+                    "Feudal model, w=0 (head present)"
+                    if period == main_period
+                    else None
+                ),
+            )
 
     # Highlight optimal weight (best metric for main period)
     if main_period in feudal_data:
@@ -318,7 +346,21 @@ def plot_feudal_weight_sweep(
             values = main_data.get(weight, {}).get(metric_name, [])
             if values:
                 mean = np.mean(values)
-                if weight > 0:  # Exclude baseline
+                # Handle w=0 specially - it's feudal model with head present, not true baseline
+                if weight == 0.0:
+                    # Plot w=0 point with special label
+                    ax.plot(
+                        weight,
+                        mean,
+                        marker="s",  # Square marker to distinguish
+                        markersize=10,
+                        color="#9CA3AF",  # Gray
+                        markeredgecolor="black",
+                        markeredgewidth=1.5,
+                        zorder=4,
+                        label="Feudal model, w=0 (head present)",
+                    )
+                elif weight > 0:  # Only consider w>0 for optimal
                     if best_value is None:
                         best_value = mean
                         best_weight = weight
@@ -373,8 +415,32 @@ def plot_feudal_weight_sweep(
 
     title = f"Feudal Weight Sweep (Period={main_period})"
     if baseline_mean is not None:
-        title += f"\n(Baseline: {baseline_mean:.4f})"
+        title += f"\n(HRM baseline: {baseline_mean:.4f})"
+
+    # Add n values subtitle
+    baseline_n = len(baseline_values) if baseline_values else 0
+    # Count feudal replications (best config)
+    feudal_n = 0
+    if main_period in feudal_data:
+        best_weight = 0.05  # Best config
+        if best_weight in feudal_data[main_period]:
+            feudal_n = len(feudal_data[main_period][best_weight].get(metric_name, []))
+
+    subtitle = f"Each point: 1 run (unless noted); HRM baseline: n={baseline_n}"
+    if feudal_n > 0:
+        subtitle += f"; Best-feudal: n={feudal_n}"
+
     ax.set_title(title, fontsize=15, fontweight="bold", pad=20)
+    ax.text(
+        0.5,
+        -0.08,
+        subtitle,
+        transform=ax.transAxes,
+        ha="center",
+        fontsize=9,
+        style="italic",
+        alpha=0.7,
+    )
 
     ax.set_xticks(weights)
     ax.grid(True, alpha=0.3, linestyle="--", zorder=0)
