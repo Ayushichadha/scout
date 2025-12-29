@@ -223,16 +223,8 @@ def plot_feudal_weight_sweep(
             zorder=1,
         )
 
-        # Add subtle error band for baseline if we have multiple runs
-        if len(baseline_values) > 1 and baseline_std is not None:
-            ax.fill_between(
-                [min(weights) - 0.01, max(weights) + 0.01],
-                baseline_mean - baseline_std,
-                baseline_mean + baseline_std,
-                color=COLORS["baseline_fill"],
-                alpha=0.12,
-                zorder=0,
-            )
+        # Removed heavy background shading - just use dashed line for baseline
+        # If needed, use very light shading (alpha=0.05) but currently removed
 
     # Compute statistics for each weight
     means = []
@@ -373,8 +365,9 @@ def plot_feudal_weight_sweep(
     baseline_n = len(baseline_values) if baseline_values else 0
     footnote_parts = [f"Baseline: n={baseline_n}"]
 
-    if single_run_weights:
-        single_run_positive = [w for w in single_run_weights if w > 0]
+    # List single-run λ values from the actually plotted weights
+    if w_positive and single_run_weights:
+        single_run_positive = [w for w in w_positive if w in single_run_weights]
         if single_run_positive:
             footnote_parts.append(f"Single-run λ values: {single_run_positive}")
 

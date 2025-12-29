@@ -131,64 +131,26 @@ def plot_replication_distribution(
     apply_style()
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    # Create violin plot
-    parts = ax.violinplot(
-        [baseline_values, feudal_values],
-        positions=[0, 1],
-        widths=0.6,
-        showmeans=True,
-        showmedians=True,
-        showextrema=True,
-    )
+    # Compute statistics first
+    baseline_mean = np.mean(baseline_values)
+    baseline_std = np.std(baseline_values, ddof=1) if len(baseline_values) > 1 else 0
+    feudal_mean = np.mean(feudal_values)
+    feudal_std = np.std(feudal_values, ddof=1) if len(feudal_values) > 1 else 0
 
-    # Style the violin plot - lighter fill
-    for pc in parts["bodies"]:
-        pc.set_facecolor("#E5E7EB")  # Gray-200
-        pc.set_alpha = 0.5
-        pc.set_edgecolor("#9CA3AF")  # Gray-400
-        pc.set_linewidth(1.0)
+    # Remove violin/box plots - use jittered dots + mean±std instead
+    # Violin is misleading with n=2 baseline
 
-    # Style the parts
-    for partname in ("cbars", "cmins", "cmaxes", "cmeans", "cmedians"):
-        if partname in parts:
-            parts[partname].set_color("#6B7280")  # Gray-500
-            parts[partname].set_linewidth(1.2)
-
-    # Add box plot on top
-    bp = ax.boxplot(
-        [baseline_values, feudal_values],
-        positions=[0, 1],
-        widths=0.25,
-        patch_artist=True,
-        showfliers=False,  # We'll show individual points with swarm
-    )
-
-    # Style box plot
-    colors = [COLORS["box_baseline"], COLORS["box_feudal"]]
-    for patch, color in zip(bp["boxes"], colors):
-        patch.set_facecolor(color)
-        patch.set_alpha(0.7)
-        patch.set_edgecolor("#374151")  # Gray-700
-        patch.set_linewidth(1.2)
-
-    # Style other box plot elements
-    for element in ["whiskers", "fliers", "means", "medians", "caps"]:
-        if element in bp:
-            for item in bp[element]:
-                item.set_color("#374151")
-                item.set_linewidth(1.2)
-
-    # Add swarm plot (individual points)
+    # Add jittered scatter points
     np.random.seed(42)  # For reproducibility
-    x_baseline = np.random.normal(0, 0.04, len(baseline_values))
-    x_feudal = np.random.normal(1, 0.04, len(feudal_values))
+    x_baseline = np.random.normal(0, 0.08, len(baseline_values))
+    x_feudal = np.random.normal(1, 0.08, len(feudal_values))
 
     ax.scatter(
         x_baseline,
         baseline_values,
         color=COLORS["scatter_baseline"],
-        s=60,
-        alpha=0.8,
+        s=80,
+        alpha=0.7,
         edgecolors="white",
         linewidths=MARKER_EDGE_WIDTH,
         zorder=10,
@@ -197,11 +159,41 @@ def plot_replication_distribution(
         x_feudal,
         feudal_values,
         color=COLORS["scatter_feudal"],
-        s=60,
-        alpha=0.8,
+        s=80,
+        alpha=0.7,
         edgecolors="white",
         linewidths=MARKER_EDGE_WIDTH,
         zorder=10,
+    )
+
+    # Add mean ± std indicators with error bars
+    # Baseline
+    ax.errorbar(
+        [0],
+        [baseline_mean],
+        yerr=[[baseline_std], [baseline_std]] if baseline_std > 0 else None,
+        fmt="D",
+        color=COLORS["scatter_baseline"],
+        markersize=10,
+        capsize=8,
+        capthick=2,
+        elinewidth=2,
+        zorder=5,
+        label="_nolegend_",
+    )
+    # Feudal
+    ax.errorbar(
+        [1],
+        [feudal_mean],
+        yerr=[[feudal_std], [feudal_std]] if feudal_std > 0 else None,
+        fmt="D",
+        color=COLORS["scatter_feudal"],
+        markersize=10,
+        capsize=8,
+        capthick=2,
+        elinewidth=2,
+        zorder=5,
+        label="_nolegend_",
     )
 
     # Set labels and title
@@ -216,12 +208,6 @@ def plot_replication_distribution(
     )
     ax.set_ylabel(ylabel)
     ax.set_title(title)
-
-    # Compute statistics
-    baseline_mean = np.mean(baseline_values)
-    baseline_std = np.std(baseline_values, ddof=1) if len(baseline_values) > 1 else 0
-    feudal_mean = np.mean(feudal_values)
-    feudal_std = np.std(feudal_values, ddof=1) if len(feudal_values) > 1 else 0
 
     # Compute p-value if scipy is available
     p_value_text = ""

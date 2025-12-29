@@ -225,16 +225,8 @@ def plot_manager_period_sweep(
             zorder=1,
         )
 
-        # Add subtle error band for baseline if we have multiple runs
-        if len(baseline_values) > 1 and baseline_std is not None:
-            ax.fill_between(
-                [min(valid_periods) - 0.5, max(valid_periods) + 0.5],
-                baseline_mean - baseline_std,
-                baseline_mean + baseline_std,
-                color=COLORS["baseline_fill"],
-                alpha=0.12,
-                zorder=0,
-            )
+        # Removed heavy background shading - just use dashed line for baseline
+        # If needed, use very light shading (alpha=0.05) but currently removed
 
     # Determine error bars
     use_ci = any(ci is not None for ci in feudal_cis) and len(baseline_values) >= 3
