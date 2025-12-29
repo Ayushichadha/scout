@@ -1,0 +1,199 @@
+{
+  "replications": [
+    {
+      "replication": 1,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_1_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.5533,
+        "final_feudal_loss": 0.34452,
+        "final_accuracy": 0.7399
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_1_w0.0_p4_20251229_142244.log"
+    },
+    {
+      "replication": 2,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_2_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.5996,
+        "final_feudal_loss": 0.33921,
+        "final_accuracy": 0.68628
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_2_w0.0_p4_20251229_142345.log"
+    },
+    {
+      "replication": 3,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_3_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.5566,
+        "final_feudal_loss": 0.35095,
+        "final_accuracy": 0.7399
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_3_w0.0_p4_20251229_142447.log"
+    },
+    {
+      "replication": 4,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_4_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.5678,
+        "final_feudal_loss": 0.32781,
+        "final_accuracy": 0.70225
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_4_w0.0_p4_20251229_142549.log"
+    },
+    {
+      "replication": 5,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_5_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.5487,
+        "final_feudal_loss": 0.32813,
+        "final_accuracy": 0.7399
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_5_w0.0_p4_20251229_142651.log"
+    },
+    {
+      "replication": 6,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_6_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.6021,
+        "final_feudal_loss": 0.35059,
+        "final_accuracy": 0.68628
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_6_w0.0_p4_20251229_142754.log"
+    },
+    {
+      "replication": 7,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_7_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.581,
+        "final_feudal_loss": 0.33641,
+        "final_accuracy": 0.69245
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_7_w0.0_p4_20251229_142857.log"
+    },
+    {
+      "replication": 8,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_8_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.603,
+        "final_feudal_loss": 0.33331,
+        "final_accuracy": 0.68464
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_8_w0.0_p4_20251229_143000.log"
+    },
+    {
+      "replication": 9,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_9_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.6734,
+        "final_feudal_loss": 0.34224,
+        "final_accuracy": 0.67726
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_9_w0.0_p4_20251229_143102.log"
+    },
+    {
+      "replication": 10,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_10_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.6429,
+        "final_feudal_loss": 0.35539,
+        "final_accuracy": 0.65392
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_10_w0.0_p4_20251229_143205.log"
+    },
+    {
+      "replication": 11,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_11_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.6082,
+        "final_feudal_loss": 0.33301,
+        "final_accuracy": 0.66994
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_11_w0.0_p4_20251229_143308.log"
+    },
+    {
+      "replication": 12,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_12_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.5474,
+        "final_feudal_loss": 0.35284,
+        "final_accuracy": 0.7399
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_12_w0.0_p4_20251229_143410.log"
+    },
+    {
+      "replication": 13,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_13_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.5468,
+        "final_feudal_loss": 0.3447,
+        "final_accuracy": 0.7399
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_13_w0.0_p4_20251229_143513.log"
+    },
+    {
+      "replication": 14,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_14_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.6765,
+        "final_feudal_loss": 0.37118,
+        "final_accuracy": 0.66255
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_14_w0.0_p4_20251229_143616.log"
+    },
+    {
+      "replication": 15,
+      "feudal_loss_weight": 0.0,
+      "manager_period": 4,
+      "run_name": "replication_15_w0.0_p4",
+      "success": true,
+      "metrics": {
+        "final_lm_loss": 1.6846,
+        "final_feudal_loss": 0.34968,
+        "final_accuracy": 0.65765
+      },
+      "log_file": "/Users/ayushi/Documents/hrm_research/experiments/logs/replication_15_w0.0_p4_20251229_143719.log"
+    }
+  ]
+}
