@@ -2,6 +2,7 @@ torch
 einops
 tqdm
 coolname
+adam-atan2
 pydantic
 argdantic
 wandb
