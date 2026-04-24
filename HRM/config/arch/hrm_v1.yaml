@@ -22,8 +22,8 @@ puzzle_emb_ndim: ${.hidden_size}
 pos_encodings: rope
 
 subgoal_head:
-  hidden_size: ${.hidden_size}
-  goal_dim: ${.hidden_size}
+  hidden_size: ${..hidden_size}
+  goal_dim: ${..hidden_size}
   manager_period: 4
   temperature: 1.0
   projection_bias: true
