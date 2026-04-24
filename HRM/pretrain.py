@@ -411,6 +411,10 @@ def train_batch(
         if train_state.carry is None:
             train_state.carry = train_state.model.initial_carry(batch)  # type: ignore
 
+        assert (
+            train_state.carry.halted.device.type == config.device
+        ), f"carry.halted on {train_state.carry.halted.device}, expected {config.device}"
+
         # Forward
         train_state.carry, loss, metrics, _, _ = train_state.model(
             carry=train_state.carry, batch=batch, return_keys=[]
