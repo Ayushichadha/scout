@@ -224,15 +224,20 @@ def create_model(
                     dist.broadcast(param, src=0)
 
     # Optimizers and lr
+    # puzzle_emb.parameters() = [local_weights, local_ids] (leaf nn.Parameters)
+    # puzzle_emb.buffers()    = [weights]                   (the real embedding table)
+    # All three go to the custom sparse optimizer; exclude them from AdamATan2.
+    _puzzle_emb = model.model.puzzle_emb  # type: ignore
+    _puzzle_emb_param_ids = {id(p) for p in _puzzle_emb.parameters()}
     optimizers = [
         CastedSparseEmbeddingSignSGD_Distributed(
-            model.model.puzzle_emb.buffers(),  # type: ignore
+            list(_puzzle_emb.parameters()) + list(_puzzle_emb.buffers()),
             lr=0,  # Needs to be set by scheduler
             weight_decay=config.puzzle_emb_weight_decay,
             world_size=world_size,
         ),
         AdamATan2(
-            model.parameters(),
+            [p for p in model.parameters() if id(p) not in _puzzle_emb_param_ids],
             lr=0,  # Needs to be set by scheduler
             weight_decay=config.weight_decay,
             betas=(config.beta1, config.beta2),
