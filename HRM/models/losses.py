@@ -112,6 +112,10 @@ class ACTLossHead(nn.Module):
         self.model = model
         self.loss_fn = globals()[loss_type]
         self.feudal_loss_weight = feudal_loss_weight
+        subgoal_cfg = getattr(getattr(model, "config", None), "subgoal_head", None)
+        self.use_alignment_loss: bool = (
+            subgoal_cfg.use_alignment_loss if subgoal_cfg is not None else True
+        )
 
     def initial_carry(self, *args, **kwargs):
         return self.model.initial_carry(*args, **kwargs)  # type: ignore
@@ -192,7 +196,11 @@ class ACTLossHead(nn.Module):
 
         # Feudal loss (intrinsic reward for worker progress toward manager goal)
         feudal_loss_value = 0
-        if "subgoal_goal" in outputs and "worker_hidden" in outputs:
+        if (
+            self.use_alignment_loss
+            and "subgoal_goal" in outputs
+            and "worker_hidden" in outputs
+        ):
             worker_state = outputs["worker_hidden"]
             manager_goal = outputs["subgoal_goal"]
             gate = outputs.get("subgoal_gate")

@@ -290,6 +290,12 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
             batch["inputs"], batch["puzzle_identifiers"]
         )
 
+        if (
+            self.config.subgoal_head is not None
+            and not self.config.subgoal_head.inject_subgoal
+        ):
+            goal = None
+
         goal_bias: Optional[torch.Tensor] = None
         if goal is not None:
             goal_bias = goal.to(self.forward_dtype)

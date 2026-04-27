@@ -20,3 +20,9 @@ results/
 build/
 dist/
 experiments/
+
+# Paper artifacts (too large for git)
+paper_exports/
+
+# Local session context, not project documentation
+CLAUDE.md

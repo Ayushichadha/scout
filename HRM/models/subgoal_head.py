@@ -50,6 +50,10 @@ class SubgoalHeadConfig(BaseModel):
     gating: bool = True
     detach_goals: bool = True
 
+    inject_subgoal: bool = True
+    use_alignment_loss: bool = True
+    random_directions: bool = False
+
 
 @dataclass
 class SubgoalHeadState:
@@ -130,6 +134,10 @@ class SubgoalHead(nn.Module):
         goal = self.goal_proj(z_h)
         if self.cfg.normalize_goal:
             goal = F.normalize(goal, dim=-1, eps=1e-8)
+            if self.cfg.goal_scale != 1.0:
+                goal = goal * self.cfg.goal_scale
+        if self.cfg.random_directions:
+            goal = F.normalize(torch.randn_like(goal).detach(), dim=-1, eps=1e-8)
             if self.cfg.goal_scale != 1.0:
                 goal = goal * self.cfg.goal_scale
         return goal

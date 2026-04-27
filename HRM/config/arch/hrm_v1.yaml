@@ -31,3 +31,6 @@ subgoal_head:
   goal_scale: 1.0
   gating: true
   detach_goals: true
+  inject_subgoal: true
+  use_alignment_loss: true
+  random_directions: false
