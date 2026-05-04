@@ -20,6 +20,7 @@ results/
 build/
 dist/
 experiments/
+dumps/
 
 # Paper artifacts (too large for git)
 paper_exports/
