@@ -53,6 +53,7 @@ BASE_OVERRIDES = [
     # manager_period=1 so the goal updates on the very first step (step % 1 == 0)
     # Without this, the default period=4 keeps goal=zeros through the warmup pass.
     "arch.subgoal_head.manager_period=1",
+    "arch.subgoal_head.directional_displacement=true",
 ]
 
 CELL_DEFS: dict[str, dict] = {
@@ -125,7 +126,12 @@ def _run_cell(model: torch.nn.Module, batch: dict) -> dict:
     # Pass 2 — main forward with gradient tracking.
     # inject=True now adds a non-zero goal; inject=False forces goal=None.
     carry, total_loss, metrics, outs, _ = model(
-        return_keys=["worker_hidden", "subgoal_goal"],
+        return_keys=[
+            "worker_hidden",
+            "subgoal_goal",
+            "subgoal_anchor",
+            "subgoal_active",
+        ],
         carry=carry,
         batch=batch,
     )
@@ -140,6 +146,8 @@ def _run_cell(model: torch.nn.Module, batch: dict) -> dict:
         "align_present": "feudal_loss" in metrics,
         "worker_hidden": outs.get("worker_hidden"),  # detached [B, T, D]
         "subgoal_goal": outs.get("subgoal_goal"),  # detached [B, D]
+        "subgoal_anchor": outs.get("subgoal_anchor"),  # detached [B, D]
+        "subgoal_active": outs.get("subgoal_active"),  # detached [B]
     }
 
 
@@ -199,24 +207,39 @@ def main() -> None:
     else:
         failures.append("[A vs D] worker_hidden missing from A or D outputs")
 
-    # 4. Cell A: cosine sim between worker_hidden and subgoal_goal is finite ∈ [-1, 1].
+    # 4. Cell A: directional cosine uses displacement from the active anchor.
     g_A = results.get("A", {}).get("subgoal_goal")
-    if g_A is not None and wh_A is not None:
+    anchor_A = results.get("A", {}).get("subgoal_anchor")
+    active_A = results.get("A", {}).get("subgoal_active")
+    if g_A is not None and wh_A is not None and anchor_A is not None:
         wh_repr = wh_A.mean(dim=1) if wh_A.dim() == 3 else wh_A  # [B, D]
-        cos_A = (
-            F.cosine_similarity(
-                F.normalize(wh_repr.float(), dim=-1),
-                F.normalize(g_A.float(), dim=-1),
-                dim=-1,
+        delta_A = wh_repr - anchor_A
+        if active_A is not None:
+            active = active_A.to(torch.bool)
+            delta_A = delta_A[active]
+            g_A_for_alignment = g_A[active]
+        else:
+            g_A_for_alignment = g_A
+        if delta_A.numel() == 0:
+            failures.append("[A] no active samples available for directional alignment")
+            cos_A = float("nan")
+        else:
+            cos_A = (
+                F.cosine_similarity(
+                    F.normalize(delta_A.float(), dim=-1),
+                    F.normalize(g_A_for_alignment.float(), dim=-1),
+                    dim=-1,
+                )
+                .mean()
+                .item()
             )
-            .mean()
-            .item()
-        )
         results["A"]["cos_A"] = cos_A
         if not (-1.0 <= cos_A <= 1.0) or (cos_A != cos_A):
-            failures.append(f"[A] cosine_sim={cos_A} not finite in [-1, 1]")
+            failures.append(
+                f"[A] displacement cosine_sim={cos_A} not finite in [-1, 1]"
+            )
     else:
-        failures.append("[A] subgoal_goal or worker_hidden missing")
+        failures.append("[A] subgoal_goal, subgoal_anchor, or worker_hidden missing")
 
     # 5a. Cell E: subgoal_goal norms ≈ 1.0 (random unit vectors).
     g_E = results.get("E", {}).get("subgoal_goal")

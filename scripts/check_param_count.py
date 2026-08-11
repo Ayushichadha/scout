@@ -28,6 +28,7 @@ BASE_CFG = dict(
         hidden_size=64,
         goal_dim=64,
         manager_period=4,
+        directional_displacement=True,
     ),
 )
 

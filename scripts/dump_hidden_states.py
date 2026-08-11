@@ -14,7 +14,10 @@ cell-D ablation checkpoint).
 
 Output .pt structure:
     worker_hidden    [200, hidden_size]   float32 — final z_L, mean-pooled over seq
-    subgoal_goal     [200, goal_dim]      float32 — manager goal at final ACT step
+    subgoal_goal     [200, goal_dim]      float32 — goal consumed on final ACT step
+    subgoal_anchor   [200, hidden_size]   float32 — anchor for the consumed goal
+    worker_delta     [200, hidden_size]   float32 — worker_hidden - subgoal_anchor
+    subgoal_active   [200]                bool    — whether a goal was consumed
     solved           [200]                bool    — exact-match correctness
     puzzle_identifier [200]               long    — stable puzzle ID from dataset
     example_index    [200]                long    — 0..199 position in subset
@@ -76,6 +79,15 @@ def parse_args():
     )
     p.add_argument(
         "--device", default=None, help="Device (default: cuda if available, else cpu)"
+    )
+    p.add_argument(
+        "--allow-missing-v-l",
+        action="store_true",
+        help=(
+            "Load a historical checkpoint that predates V_L. The projection "
+            "remains newly initialized, so resulting steering behavior is not "
+            "directly comparable to a trained corrected-baseline checkpoint."
+        ),
     )
     # Everything after the known flags is treated as Hydra overrides
     args, overrides = p.parse_known_args()
@@ -142,7 +154,13 @@ def build_model(config: PretrainConfig, eval_metadata, device: str):
 # ---------------------------------------------------------------------------
 
 
-def load_checkpoint(model: torch.nn.Module, checkpoint_path: str, device: str) -> None:
+def load_checkpoint(
+    model: torch.nn.Module,
+    checkpoint_path: str,
+    device: str,
+    *,
+    allow_missing_v_l: bool = False,
+) -> bool:
     state_dict = torch.load(checkpoint_path, map_location=device, weights_only=True)
     # torch.compile wraps the model in OptimizedModule; .state_dict() may include
     # an _orig_mod. prefix in some PyTorch builds — strip it if present.
@@ -158,7 +176,10 @@ def load_checkpoint(model: torch.nn.Module, checkpoint_path: str, device: str) -
     eval_safe_skip = {
         k for k in missing_keys if k.endswith((".local_weights", ".local_ids"))
     }
-    real_missing = [k for k in missing_keys if k not in eval_safe_skip]
+    historical_v_l = {
+        k for k in missing_keys if allow_missing_v_l and k.endswith(".V_L.weight")
+    }
+    real_missing = [k for k in missing_keys if k not in eval_safe_skip | historical_v_l]
     if real_missing:
         raise RuntimeError(f"Checkpoint is missing required keys: {real_missing}")
     if unexpected_keys:
@@ -167,6 +188,12 @@ def load_checkpoint(model: torch.nn.Module, checkpoint_path: str, device: str) -
         print(
             f"  (skipped {len(eval_safe_skip)} batch-local puzzle-emb buffers — eval-safe)"
         )
+    if historical_v_l:
+        print(
+            "  WARNING: checkpoint predates V_L; using a newly initialized "
+            "projection. Do not treat steering metrics as checkpoint-comparable."
+        )
+    return bool(historical_v_l)
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +214,13 @@ def run_act_forward(model: torch.nn.Module, batch: dict) -> dict:
             carry, _, _, final_outputs, all_finish = model(
                 carry=carry,
                 batch=batch,
-                return_keys=["worker_hidden", "subgoal_goal", "logits"],
+                return_keys=[
+                    "worker_hidden",
+                    "subgoal_goal",
+                    "subgoal_anchor",
+                    "subgoal_active",
+                    "logits",
+                ],
             )
             if all_finish:
                 break
@@ -221,7 +254,12 @@ def main() -> None:
     )
 
     model = build_model(config, eval_metadata, device)
-    load_checkpoint(model, args.checkpoint, device)
+    historical_v_l_initialized = load_checkpoint(
+        model,
+        args.checkpoint,
+        device,
+        allow_missing_v_l=args.allow_missing_v_l,
+    )
     # eval mode: ACT halts at exactly halt_max_steps steps — no Q-exploration noise
     model.eval()
 
@@ -231,6 +269,9 @@ def main() -> None:
 
     worker_hiddens: list[torch.Tensor] = []
     subgoal_goals: list[torch.Tensor] = []
+    subgoal_anchors: list[torch.Tensor] = []
+    worker_deltas: list[torch.Tensor] = []
+    subgoal_active: list[torch.Tensor] = []
     solved_labels: list[torch.Tensor] = []
     puzzle_ids: list[torch.Tensor] = []
     total_collected = 0
@@ -259,6 +300,14 @@ def main() -> None:
                 n, worker_h.shape[-1], dtype=torch.float32, device=device
             )
 
+        if "subgoal_anchor" in outputs:
+            anchor = outputs["subgoal_anchor"].to(torch.float32)
+            active = outputs["subgoal_active"].to(torch.bool)
+        else:
+            anchor = torch.zeros_like(worker_h)
+            active = torch.zeros(n, dtype=torch.bool, device=device)
+        worker_delta = worker_h - anchor
+
         # seq_is_correct: exact-match per example — replicates losses.py:140-147 exactly
         logits = outputs["logits"].to(torch.float32)
         labels = batch["labels"]
@@ -268,6 +317,9 @@ def main() -> None:
 
         worker_hiddens.append(worker_h.cpu())
         subgoal_goals.append(subgoal_g.cpu())
+        subgoal_anchors.append(anchor.cpu())
+        worker_deltas.append(worker_delta.cpu())
+        subgoal_active.append(active.cpu())
         solved_labels.append(seq_is_correct.cpu())
         puzzle_ids.append(batch["puzzle_identifiers"].cpu())
         total_collected += n
@@ -278,6 +330,9 @@ def main() -> None:
 
     worker_hidden_all = torch.cat(worker_hiddens, dim=0)  # [200, hidden_size]
     subgoal_goal_all = torch.cat(subgoal_goals, dim=0)  # [200, goal_dim]
+    subgoal_anchor_all = torch.cat(subgoal_anchors, dim=0)  # [200, hidden_size]
+    worker_delta_all = torch.cat(worker_deltas, dim=0)  # [200, hidden_size]
+    subgoal_active_all = torch.cat(subgoal_active, dim=0).bool()  # [200]
     solved_all = torch.cat(solved_labels, dim=0).bool()  # [200]
     puzzle_id_all = torch.cat(puzzle_ids, dim=0).long()  # [200]
     example_index_all = torch.arange(SUBSET_SIZE, dtype=torch.long)  # [200]
@@ -285,6 +340,9 @@ def main() -> None:
     payload = {
         "worker_hidden": worker_hidden_all,
         "subgoal_goal": subgoal_goal_all,
+        "subgoal_anchor": subgoal_anchor_all,
+        "worker_delta": worker_delta_all,
+        "subgoal_active": subgoal_active_all,
         "solved": solved_all,
         "puzzle_identifier": puzzle_id_all,
         "example_index": example_index_all,
@@ -295,6 +353,8 @@ def main() -> None:
             "model_param_count": param_count,
             "eval_data_path": config.data_path,
             "subset_size": SUBSET_SIZE,
+            "alignment_semantics": "worker_displacement_from_active_goal_anchor",
+            "historical_v_l_initialized": historical_v_l_initialized,
         },
     }
 
