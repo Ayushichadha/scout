@@ -154,7 +154,7 @@ All plots follow these conventions:
 To regenerate all 4 plots:
 
 ```bash
-cd /Users/ayushi/Documents/hrm_research
+cd /path/to/scout
 
 # Manager period sweep
 python3 scripts/plot_manager_period_sweep.py \
