@@ -18,6 +18,7 @@ def test_initial_state_shapes():
     assert state.step.shape == (3,)
     assert state.goal.shape == (3, 8)
     assert state.gate is not None and state.gate.shape == (3, 1)
+    assert state.anchor.shape == (3, 8)
 
 
 def test_periodic_goal_updates():
@@ -26,12 +27,13 @@ def test_periodic_goal_updates():
     state = head.initial_state(batch_size=1, device=torch.device("cpu"))
     z = torch.randn(1, 8)
 
-    state, output = head(z, state)
+    anchor = torch.randn(1, 8)
+    state, output = head(z, state, anchor=anchor)
     # First step should not trigger an update (step=1 -> not divisible by 2)
     assert output.updated.item() == 0
     first_goal = state.goal.clone()
 
-    state, output = head(z, state)
+    state, output = head(z, state, anchor=anchor)
     assert output.updated.item() == 1
     assert not torch.allclose(first_goal, state.goal)
     # Stored goal is detached from graph

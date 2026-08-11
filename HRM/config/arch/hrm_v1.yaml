@@ -34,3 +34,4 @@ subgoal_head:
   inject_subgoal: true
   use_alignment_loss: true
   random_directions: false
+  directional_displacement: true

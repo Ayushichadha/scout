@@ -184,6 +184,15 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
             ]
         )
 
+        # Learned map from manager goal space to the shared HRM hidden space.
+        self.V_L: Optional[nn.Linear] = None
+        if self.config.subgoal_head is not None:
+            self.V_L = nn.Linear(
+                self.config.subgoal_head.goal_dim,
+                self.config.hidden_size,
+                bias=False,
+            )
+
         # Initial states
         self.H_init = nn.Buffer(
             trunc_normal_init_(
@@ -298,7 +307,9 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
 
         goal_bias: Optional[torch.Tensor] = None
         if goal is not None:
-            goal_bias = goal.to(self.forward_dtype)
+            if self.V_L is None:
+                raise RuntimeError("A subgoal was supplied without a V_L projection")
+            goal_bias = self.V_L(goal.to(self.V_L.weight.dtype)).to(self.forward_dtype)
             if gate is not None:
                 goal_bias = goal_bias * gate.to(goal_bias.dtype)
             goal_bias = goal_bias.unsqueeze(1)
@@ -344,6 +355,8 @@ class HierarchicalReasoningModel_ACTV1_Inner(nn.Module):
             "manager_hidden": z_H,
             "worker_hidden": z_L,
         }
+        if goal_bias is not None:
+            extras["goal_bias"] = goal_bias.squeeze(1)
 
         return new_carry, output, (q_logits[..., 0], q_logits[..., 1]), extras
 
@@ -357,6 +370,14 @@ class HierarchicalReasoningModel_ACTV1(nn.Module):
         self.inner = HierarchicalReasoningModel_ACTV1_Inner(self.config)
         self.subgoal_head: Optional[SubgoalHead]
         if self.config.subgoal_head is not None:
+            if (
+                self.config.subgoal_head.directional_displacement
+                and self.config.subgoal_head.goal_dim != self.config.hidden_size
+            ):
+                raise ValueError(
+                    "directional_displacement requires goal_dim == hidden_size "
+                    "until a separate worker-state projection is introduced"
+                )
             self.subgoal_head = SubgoalHead(self.config.subgoal_head)
         else:
             self.subgoal_head = None
@@ -404,12 +425,17 @@ class HierarchicalReasoningModel_ACTV1(nn.Module):
             for k, v in carry.current_data.items()
         }
 
-        # Subgoal state and controls
+        # Subgoal state and controls. A halted sample begins a fresh ACT episode,
+        # so its complete manager commitment is reset before this worker pass.
         subgoal_state = carry.subgoal_state
         if self.subgoal_head is not None and subgoal_state is None:
             subgoal_state = self.subgoal_head.initial_state(
                 batch_size=batch["inputs"].shape[0], device=batch["inputs"].device
             )
+        if self.subgoal_head is not None and subgoal_state is not None:
+            subgoal_state = self.subgoal_head.reset_state(subgoal_state, carry.halted)
+
+        fresh_episode = carry.halted
 
         goal_tensor: Optional[torch.Tensor] = None
         gate_tensor: Optional[torch.Tensor] = None
@@ -436,22 +462,51 @@ class HierarchicalReasoningModel_ACTV1(nn.Module):
         # Add hidden states to outputs for feudal loss computation
         outputs["worker_hidden"] = extras["worker_hidden"]
         outputs["manager_hidden"] = extras["manager_hidden"]
+        if "goal_bias" in extras:
+            outputs["subgoal_goal_bias"] = extras["goal_bias"]
 
         new_subgoal_state: Optional[SubgoalHeadState] = None
         subgoal_output = None
         if self.subgoal_head is not None:
             manager_hidden = extras["manager_hidden"]
             manager_repr = manager_hidden[:, 0].to(torch.float32)
+            worker_repr = extras["worker_hidden"].mean(dim=1).to(torch.float32)
+            active_goal = subgoal_state.goal
+            active_gate = subgoal_state.gate
+            active_anchor = subgoal_state.anchor
+            active_mask = ~fresh_episode
+            next_step = subgoal_state.step + 1
+            # Preserve the historical episode-step phase: for P=3 the forced
+            # initial emission occurs after call 1, followed by periodic
+            # emissions after calls 3, 6, 9, ... . Because emission follows
+            # worker computation, each emitted commitment is first consumed
+            # on the next outer call.
+            periodic_update = (next_step % self.config.subgoal_head.manager_period) == 0
+            update_mask = fresh_episode | periodic_update
             new_subgoal_state, subgoal_output = self.subgoal_head(
-                manager_repr, subgoal_state
+                manager_repr,
+                subgoal_state,
+                update_mask=update_mask,
+                anchor=worker_repr,
             )
 
-            # Use non-detached goal for loss computation (allows gradients to flow back)
-            # The state stores detached goals for deep supervision, but we need gradients
-            # for the feudal loss to train the subgoal head
-            outputs["subgoal_goal"] = subgoal_output.goal
-            if subgoal_output.gate is not None:
-                outputs["subgoal_gate"] = subgoal_output.gate
+            if self.config.subgoal_head.directional_displacement:
+                # Alignment describes the commitment consumed by this worker
+                # pass, never the goal emitted after it. The first pass of an
+                # episode is inactive because causal ordering only makes its
+                # forced goal available to the next outer call.
+                outputs["subgoal_goal"] = active_goal
+                outputs["subgoal_anchor"] = active_anchor
+                outputs["subgoal_active"] = active_mask.to(torch.float32)
+                if active_gate is not None:
+                    outputs["subgoal_gate"] = active_gate
+            else:
+                # Compatibility path for historical absolute-state alignment.
+                outputs["subgoal_goal"] = subgoal_output.goal
+                if subgoal_output.gate is not None:
+                    outputs["subgoal_gate"] = subgoal_output.gate
+            outputs["subgoal_fresh_episode"] = fresh_episode.to(torch.float32)
+            outputs["subgoal_step"] = new_subgoal_state.step
             outputs["subgoal_updated"] = subgoal_output.updated.to(torch.float32)
 
         with torch.no_grad():
