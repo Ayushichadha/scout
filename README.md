@@ -7,7 +7,6 @@ Scout is an experimental extension of the
 studies whether a slow manager can improve long-horizon reasoning by emitting
 temporally persistent directional goals for a fast worker in latent space.
 
-The repository supports a NeurIPS 2026 Meta-Agents workshop research project.
 It is research code: interfaces and conclusions may change as controls and
 replications are added.
 
