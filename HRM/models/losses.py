@@ -44,6 +44,8 @@ def feudal_loss(
     worker_state: torch.Tensor,
     manager_goal: torch.Tensor,
     gate: Optional[torch.Tensor] = None,
+    anchor: Optional[torch.Tensor] = None,
+    active_mask: Optional[torch.Tensor] = None,
     reduction: str = "sum",
 ) -> torch.Tensor:
     """Compute feudal (intrinsic reward) loss based on worker progress toward manager goal.
@@ -61,6 +63,12 @@ def feudal_loss(
     gate:
         Optional gating signal of shape [B, 1] or [B] to modulate the reward.
         Higher gate values indicate stronger commitment to the goal.
+    anchor:
+        Optional pooled worker state at goal emission. When supplied, alignment
+        uses ``worker_repr - anchor``; when omitted, the historical absolute
+        worker representation is used.
+    active_mask:
+        Optional per-sample mask for passes on which a goal has been consumed.
     reduction:
         Reduction mode: "sum", "mean", or "none".
 
@@ -76,8 +84,13 @@ def feudal_loss(
     else:
         worker_repr = worker_state  # [B, D]
 
-    # Normalize for cosine similarity
-    worker_norm = F.normalize(worker_repr, p=2, dim=-1, eps=1e-8)
+    # Directional mode aligns displacement since goal emission. Omitting an
+    # anchor preserves the historical absolute-state behavior.
+    alignment_vector = worker_repr if anchor is None else worker_repr - anchor
+
+    # Normalize for cosine similarity. F.normalize maps an exactly zero
+    # displacement to zero, yielding a finite per-sample loss of one.
+    worker_norm = F.normalize(alignment_vector, p=2, dim=-1, eps=1e-8)
     goal_norm = F.normalize(manager_goal, p=2, dim=-1, eps=1e-8)
 
     # Cosine similarity: higher = better alignment
@@ -92,6 +105,11 @@ def feudal_loss(
         if gate.dim() > 1:
             gate = gate.squeeze(-1)  # [B, 1] -> [B]
         feudal_loss_per_sample = feudal_loss_per_sample * gate
+
+    if active_mask is not None:
+        feudal_loss_per_sample = feudal_loss_per_sample * active_mask.to(
+            feudal_loss_per_sample.dtype
+        )
 
     # Reduce
     if reduction == "sum":
@@ -112,6 +130,10 @@ class ACTLossHead(nn.Module):
         self.model = model
         self.loss_fn = globals()[loss_type]
         self.feudal_loss_weight = feudal_loss_weight
+        subgoal_cfg = getattr(getattr(model, "config", None), "subgoal_head", None)
+        self.use_alignment_loss: bool = (
+            subgoal_cfg.use_alignment_loss if subgoal_cfg is not None else True
+        )
 
     def initial_carry(self, *args, **kwargs):
         return self.model.initial_carry(*args, **kwargs)  # type: ignore
@@ -192,14 +214,30 @@ class ACTLossHead(nn.Module):
 
         # Feudal loss (intrinsic reward for worker progress toward manager goal)
         feudal_loss_value = 0
-        if "subgoal_goal" in outputs and "worker_hidden" in outputs:
+        if (
+            self.use_alignment_loss
+            and "subgoal_goal" in outputs
+            and "worker_hidden" in outputs
+        ):
             worker_state = outputs["worker_hidden"]
             manager_goal = outputs["subgoal_goal"]
             gate = outputs.get("subgoal_gate")
+            anchor = (
+                outputs.get("subgoal_anchor")
+                if getattr(
+                    getattr(self.model.config, "subgoal_head", None),
+                    "directional_displacement",
+                    False,
+                )
+                else None
+            )
+            active_mask = outputs.get("subgoal_active")
             feudal_loss_value = feudal_loss(
                 worker_state=worker_state,
                 manager_goal=manager_goal,
                 gate=gate,
+                anchor=anchor,
+                active_mask=active_mask,
                 reduction="sum",
             )
             metrics["feudal_loss"] = feudal_loss_value.detach()
@@ -225,16 +263,25 @@ class ACTLossHead(nn.Module):
                 metrics["subgoal_goal_norm_mean"] = goal_norm.mean()
                 metrics["subgoal_goal_norm_std"] = goal_norm.std()
 
-                # Worker-goal alignment (cosine similarity)
+                # Worker displacement-goal alignment in directional mode.
                 if worker_state.dim() == 3:
                     worker_repr = worker_state.mean(dim=1)  # [B, T, D] -> [B, D]
                 else:
                     worker_repr = worker_state  # [B, D]
-                worker_norm = F.normalize(worker_repr, p=2, dim=-1, eps=1e-8)
+                alignment_vector = (
+                    worker_repr if anchor is None else worker_repr - anchor
+                )
+                worker_norm = F.normalize(alignment_vector, p=2, dim=-1, eps=1e-8)
                 goal_norm_vec = F.normalize(manager_goal, p=2, dim=-1, eps=1e-8)
                 alignment = (worker_norm * goal_norm_vec).sum(dim=-1)
-                metrics["subgoal_worker_alignment_mean"] = alignment.mean()
-                metrics["subgoal_worker_alignment_std"] = alignment.std()
+                if active_mask is not None:
+                    active = active_mask.to(torch.bool)
+                    alignment = alignment[active]
+                if alignment.numel() > 0:
+                    metrics["subgoal_worker_alignment_mean"] = alignment.mean()
+                    metrics["subgoal_worker_alignment_std"] = alignment.std(
+                        unbiased=False
+                    )
 
         # Filter outputs for return
         detached_outputs = {k: outputs[k].detach() for k in return_keys if k in outputs}
