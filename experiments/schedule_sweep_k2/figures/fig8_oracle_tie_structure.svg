@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="286.627078pt" height="195.986999pt" viewBox="0 0 286.627078 195.986999" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Scout figure generator</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 195.986999 
+L 286.627078 195.986999 
+L 286.627078 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 67.032 147.695159 
+L 228.6 147.695159 
+L 228.6 27.858359 
+L 67.032 27.858359 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 67.032 33.305487 
+L 94.273846 33.305487 
+L 94.273846 44.629264 
+L 67.032 44.629264 
+z
+" clip-path="url(#p01cf1ac09b)" style="fill: #0b7a75"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 67.032 52.82924 
+L 83.100923 52.82924 
+L 83.100923 64.153017 
+L 67.032 64.153017 
+z
+" clip-path="url(#p01cf1ac09b)" style="fill: #b6c3ca"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 67.032 72.352994 
+L 89.377846 72.352994 
+L 89.377846 83.676771 
+L 67.032 83.676771 
+z
+" clip-path="url(#p01cf1ac09b)" style="fill: #b6c3ca"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 67.032 91.876748 
+L 81.155077 91.876748 
+L 81.155077 103.200525 
+L 67.032 103.200525 
+z
+" clip-path="url(#p01cf1ac09b)" style="fill: #b6c3ca"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 67.032 111.400501 
+L 94.336615 111.400501 
+L 94.336615 122.724278 
+L 67.032 122.724278 
+z
+" clip-path="url(#p01cf1ac09b)" style="fill: #b6c3ca"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 67.032 130.924255 
+L 191.315077 130.924255 
+L 191.315077 142.248032 
+L 67.032 142.248032 
+z
+" clip-path="url(#p01cf1ac09b)" style="fill: #e1a72b"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <defs>
+       <path id="m404d868296" d="M 0 0 
+L 0 3 
+" style="stroke: #e7edf0; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m404d868296" x="67.032" y="147.695159" style="fill: #e7edf0; stroke: #e7edf0; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #647785" x="67.032" y="159.514066" transform="rotate(-0 67.032 159.514066)">0%</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_2">
+      <g>
+       <use xlink:href="#m404d868296" x="124.873846" y="147.695159" style="fill: #e7edf0; stroke: #e7edf0; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #647785" x="124.873846" y="159.514066" transform="rotate(-0 124.873846 159.514066)">25%</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_3">
+      <g>
+       <use xlink:href="#m404d868296" x="182.715692" y="147.695159" style="fill: #e7edf0; stroke: #e7edf0; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #647785" x="182.715692" y="159.514066" transform="rotate(-0 182.715692 159.514066)">50%</text>
+     </g>
+    </g>
+    <g id="text_4">
+     <text style="font-size: 8px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #172b3a" x="147.816" y="171.048597" transform="rotate(-0 147.816 171.048597)">Fraction of episodes</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_4"/>
+     <g id="text_5">
+      <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #647785" x="63.532" y="41.626828" transform="rotate(-0 63.532 41.626828)">1  unique</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_5"/>
+     <g id="text_6">
+      <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #647785" x="63.532" y="61.150582" transform="rotate(-0 63.532 61.150582)">2</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_6"/>
+     <g id="text_7">
+      <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #647785" x="63.532" y="80.674336" transform="rotate(-0 63.532 80.674336)">3</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_7"/>
+     <g id="text_8">
+      <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #647785" x="63.532" y="100.198089" transform="rotate(-0 63.532 100.198089)">4</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_8"/>
+     <g id="text_9">
+      <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #647785" x="63.532" y="119.721843" transform="rotate(-0 63.532 119.721843)">5</text>
+     </g>
+    </g>
+    <g id="ytick_6">
+     <g id="line2d_9"/>
+     <g id="text_10">
+      <text style="font-size: 7px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #647785" x="63.532" y="139.245597" transform="rotate(-0 63.532 139.245597)">6  all clocks</text>
+     </g>
+    </g>
+    <g id="text_11">
+     <text style="font-size: 8px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #172b3a" x="16.93575" y="87.776759" transform="rotate(-90 16.93575 87.776759)">Schedules tied for best</text>
+    </g>
+   </g>
+   <g id="patch_9">
+    <path d="M 67.032 147.695159 
+L 228.6 147.695159 
+" style="fill: none; stroke: #e7edf0; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_12">
+    <text style="font-weight: 700; font-size: 6.4px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="97.050255" y="40.733375" transform="rotate(-0 97.050255 40.733375)">434  ·  11.8%</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="85.877332" y="60.257129" transform="rotate(-0 85.877332 60.257129)">256  ·  6.9%</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="92.154255" y="79.780883" transform="rotate(-0 92.154255 79.780883)">356  ·  9.7%</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="83.931486" y="99.304636" transform="rotate(-0 83.931486 99.304636)">225  ·  6.1%</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 6.4px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="97.113024" y="118.82839" transform="rotate(-0 97.113024 118.82839)">435  ·  11.8%</text>
+   </g>
+   <g id="text_17">
+    <text style="font-weight: 700; font-size: 6.4px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="194.091486" y="138.352144" transform="rotate(-0 194.091486 138.352144)">1,980  ·  53.7%</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 6.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #647785" x="67.032" y="22.374665" transform="rotate(-0 67.032 22.374665)">88.2% tied across ≥2 schedules (3,252 episodes)</text>
+   </g>
+   <g id="text_19">
+    <text style="font-weight: 700; font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #172b3a" x="67.032" y="10.858359" transform="rotate(-0 67.032 10.858359)">Most episodes do not choose a clock</text>
+   </g>
+  </g>
+  <g id="text_20">
+   <text style="font-size: 5.3px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #647785" x="2.88" y="191.857359" transform="rotate(-0 2.88 191.857359)">Source: per_episode_matrix.csv · exact multiplicity of per-episode oracle maxima</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p01cf1ac09b">
+   <rect x="67.032" y="27.858359" width="161.568" height="119.8368"/>
+  </clipPath>
+ </defs>
+</svg>

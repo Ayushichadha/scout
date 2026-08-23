@@ -894,6 +894,268 @@ def figure_architecture(df: pd.DataFrame) -> None:
     save_pair(fig, "fig5_manager_worker_architecture")
 
 
+def figure_sparse_schedule_grid(df: pd.DataFrame) -> None:
+    # DATA TRACE: every colored cell is the requested macro per-episode mean:
+    # df.groupby(["dwell_first", "dwell_second"], as_index=False)
+    #   .agg(macro_accuracy=("token_acc_episode", "mean"))
+    cells = (
+        df.groupby(["dwell_first", "dwell_second"], as_index=False)
+        .agg(macro_accuracy=("token_acc_episode", "mean"))
+        .sort_values("dwell_first")
+    )
+    first_dwells = np.sort(df["dwell_first"].unique()).astype(int)
+    second_dwells = np.sort(df["dwell_second"].unique()).astype(int)
+    grid = np.full((len(first_dwells), len(second_dwells)), np.nan)
+    first_index = {value: index for index, value in enumerate(first_dwells)}
+    second_index = {value: index for index, value in enumerate(second_dwells)}
+    for row in cells.itertuples():
+        grid[first_index[int(row.dwell_first)], second_index[int(row.dwell_second)]] = (
+            row.macro_accuracy
+        )
+
+    cmap = mpl.colors.LinearSegmentedColormap.from_list(
+        "scout_accuracy", [CORAL_LIGHT, TEAL_LIGHT, TEAL]
+    )
+    cmap.set_bad(PALE)
+    # The fixed 46–50% color domain matches Figure 1's explicitly zoomed range;
+    # direct labels carry the exact values and unevaluated cells remain neutral.
+    norm = mpl.colors.Normalize(vmin=0.46, vmax=0.50)
+
+    fig, ax = plt.subplots(figsize=(3.30, 3.12))
+    ax.imshow(np.ma.masked_invalid(grid), cmap=cmap, norm=norm, aspect="equal")
+    for row in cells.itertuples():
+        yi = first_index[int(row.dwell_first)]
+        xi = second_index[int(row.dwell_second)]
+        is_peak = row.macro_accuracy == cells["macro_accuracy"].max()
+        ax.text(
+            xi,
+            yi,
+            f"{row.macro_accuracy:.1%}",
+            ha="center",
+            va="center",
+            fontsize=7,
+            fontweight="bold",
+            color=WHITE if row.macro_accuracy >= 0.485 else INK,
+        )
+        if is_peak:
+            ax.add_patch(
+                mpl.patches.Rectangle(
+                    (xi - 0.46, yi - 0.46),
+                    0.92,
+                    0.92,
+                    fill=False,
+                    edgecolor=GOLD,
+                    linewidth=2.0,
+                )
+            )
+    ax.set_xticks(np.arange(len(second_dwells)), second_dwells)
+    ax.set_yticks(np.arange(len(first_dwells)), first_dwells)
+    ax.set_xlabel("Second commitment dwell")
+    ax.set_ylabel("First commitment dwell")
+    ax.set_xticks(np.arange(-0.5, len(second_dwells), 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, len(first_dwells), 1), minor=True)
+    ax.grid(which="minor", color=WHITE, linewidth=1.5)
+    ax.tick_params(which="minor", bottom=False, left=False)
+    ax.tick_params(which="major", length=0)
+    ax.set_title("Only one dwell trade-off was tested", loc="left", pad=16)
+    ax.text(
+        0,
+        1.025,
+        "blank = not evaluated",
+        transform=ax.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=5.9,
+        color=MUTED,
+    )
+    ax.text(
+        1,
+        1.025,
+        "46–50% color scale",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=5.9,
+        color=MUTED,
+    )
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    add_source_note(
+        fig,
+        "Source: per_episode_matrix.csv · macro mean over all episodes in each observed cell",
+    )
+    fig.subplots_adjust(left=0.20, right=0.98, bottom=0.18, top=0.82)
+    save_pair(fig, "fig6_sparse_schedule_grid")
+
+
+def oracle_gain_decomposition(df: pd.DataFrame) -> tuple[np.ndarray, int, float]:
+    """Return sorted extra-correct-token gains over the best fixed clock."""
+    # DATA TRACE: this reproduces the micro-accuracy oracle decomposition used
+    # by scripts/run_schedule_sweep_k2.py. Denominators are first verified equal
+    # within episode; best fixed is the schedule with the largest total correct
+    # count; oracle gain is max(correct across schedules) minus best-fixed correct.
+    correct = df.pivot(
+        index="episode_id", columns="schedule_k", values="tokens_correct"
+    ).sort_index(axis=1)
+    valid = df.pivot(
+        index="episode_id", columns="schedule_k", values="tokens_valid"
+    ).sort_index(axis=1)
+    if not valid.nunique(axis=1).eq(1).all():
+        raise ValueError("valid-token denominators differ within episode")
+    best_k = int(correct.sum(axis=0).idxmax())
+    gain_tokens = (correct.max(axis=1) - correct[best_k]).sort_values(ascending=False)
+    denominator = float(valid.iloc[:, 0].sum())
+    return gain_tokens.to_numpy(dtype=float), best_k, denominator
+
+
+def figure_oracle_concentration(df: pd.DataFrame, analysis: str) -> None:
+    gain_tokens, best_k, denominator = oracle_gain_decomposition(df)
+    total_gain = gain_tokens.sum()
+    if total_gain <= 0:
+        raise ValueError("oracle headroom must be positive")
+    cumulative = np.cumsum(gain_tokens) / total_gain
+    episode_fraction = np.arange(1, len(gain_tokens) + 1) / len(gain_tokens)
+    positive_count = int(np.count_nonzero(gain_tokens))
+    positive_fraction = positive_count / len(gain_tokens)
+    halfway_count = int(np.searchsorted(cumulative, 0.5) + 1)
+    halfway_fraction = halfway_count / len(gain_tokens)
+
+    # DATA TRACE: total_gain / denominator exactly decomposes micro headroom.
+    # It is checked against the published point estimate copied from
+    # ceiling_analysis.md rather than introducing a new estimate.
+    published_headroom = parse_ceiling_values(analysis)["headroom"]
+    decomposed_headroom = total_gain / denominator
+    if not np.isclose(decomposed_headroom, published_headroom, atol=5e-10):
+        raise ValueError("episode gains do not reproduce published headroom")
+
+    fig, ax = plt.subplots(figsize=(3.30, 2.86))
+    x = np.concatenate([[0.0], episode_fraction])
+    y = np.concatenate([[0.0], cumulative])
+    ax.plot(x, y, color=GOLD, lw=2.2, drawstyle="steps-post")
+    ax.fill_between(x, 0, y, step="post", color=GOLD_LIGHT, alpha=0.72)
+    ax.plot([0, 1], [0, 1], color=LIGHT, lw=1.0, ls=(0, (2, 2)), zorder=0)
+    ax.scatter(
+        [halfway_fraction, positive_fraction],
+        [cumulative[halfway_count - 1], 1.0],
+        s=[28, 32],
+        color=[CORAL, TEAL],
+        edgecolor=WHITE,
+        linewidth=0.8,
+        zorder=3,
+    )
+    ax.annotate(
+        f"half the headroom\ncomes from {halfway_count} episodes ({halfway_fraction:.1%})",
+        xy=(halfway_fraction, cumulative[halfway_count - 1]),
+        xytext=(0.18, 0.48),
+        textcoords="axes fraction",
+        fontsize=6.5,
+        fontweight="bold",
+        color=CORAL,
+        arrowprops=dict(arrowstyle="-", color=CORAL, lw=0.8),
+    )
+    ax.annotate(
+        f"all gain: {positive_count} episodes ({positive_fraction:.1%})",
+        xy=(positive_fraction, 1.0),
+        xytext=(0.43, 0.83),
+        textcoords="axes fraction",
+        fontsize=6.3,
+        color=TEAL,
+        arrowprops=dict(arrowstyle="-", color=TEAL, lw=0.8),
+    )
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1.025)
+    ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
+    ax.set_yticks([0, 0.5, 1.0])
+    ax.xaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
+    ax.yaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
+    ax.set_xlabel("Episodes, ranked by oracle gain")
+    ax.set_ylabel("Cumulative micro headroom")
+    ax.set_title("Headroom lives in a few episodes", loc="left", pad=7)
+    ax.text(
+        1,
+        1.01,
+        f"oracle over best fixed [1,{best_k}]",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=5.8,
+        color=MUTED,
+    )
+    clean_axis(ax)
+    add_source_note(
+        fig,
+        "Source: per_episode_matrix.csv · exact extra-correct-token decomposition of micro headroom",
+    )
+    fig.subplots_adjust(left=0.20, right=0.98, bottom=0.23, top=0.84)
+    save_pair(fig, "fig7_oracle_concentration")
+
+
+def figure_oracle_ties(df: pd.DataFrame, analysis: str) -> None:
+    # DATA TRACE: tie multiplicity is computed exactly as in the ceiling script:
+    # correct.eq(correct.max(axis=1), axis=0).sum(axis=1).value_counts().
+    # Per-episode valid denominators are equal, so token-count and accuracy ties
+    # are identical.
+    correct = df.pivot(
+        index="episode_id", columns="schedule_k", values="tokens_correct"
+    ).sort_index(axis=1)
+    maxima = correct.max(axis=1)
+    multiplicity = correct.eq(maxima, axis=0).sum(axis=1)
+    counts = multiplicity.value_counts().sort_index().reindex(range(1, 7), fill_value=0)
+    fractions = counts / counts.sum()
+    tied_count = int(counts.loc[2:].sum())
+    tied_fraction = tied_count / counts.sum()
+
+    # DATA TRACE: check the derived tied count against the value copied directly
+    # from ceiling_analysis.md's Oracle argmax distribution paragraph.
+    match = re.search(r"([0-9,]+) episodes have two or more tied maxima", analysis)
+    if match is None or tied_count != int(match.group(1).replace(",", "")):
+        raise ValueError("tie count does not match ceiling_analysis.md")
+
+    fig, ax = plt.subplots(figsize=(3.30, 2.92))
+    y = np.arange(1, 7)
+    colors = [TEAL, "#B6C3CA", "#B6C3CA", "#B6C3CA", "#B6C3CA", GOLD]
+    ax.barh(y, fractions.to_numpy(), height=0.58, color=colors)
+    for yi, count, fraction in zip(y, counts, fractions):
+        ax.text(
+            fraction + 0.012,
+            yi,
+            f"{int(count):,}  ·  {fraction:.1%}",
+            va="center",
+            ha="left",
+            fontsize=6.4,
+            color=INK,
+            fontweight="bold" if yi in (1, 6) else "normal",
+        )
+    ax.set_yticks(y, ["1  unique", "2", "3", "4", "5", "6  all clocks"])
+    ax.invert_yaxis()
+    ax.set_xlim(0, max(fractions.max() * 1.30, 0.62))
+    ax.set_xticks([0, 0.25, 0.50])
+    ax.xaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
+    ax.set_xlabel("Fraction of episodes")
+    ax.set_ylabel("Schedules tied for best")
+    ax.set_title("Most episodes do not choose a clock", loc="left", pad=17)
+    ax.text(
+        0,
+        1.035,
+        f"{tied_fraction:.1%} tied across ≥2 schedules ({tied_count:,} episodes)",
+        transform=ax.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=6.2,
+        color=MUTED,
+    )
+    ax.spines[["top", "right", "left"]].set_visible(False)
+    ax.spines["bottom"].set_color(LIGHT)
+    ax.tick_params(axis="y", length=0)
+    ax.tick_params(axis="x", length=3, color=LIGHT)
+    add_source_note(
+        fig,
+        "Source: per_episode_matrix.csv · exact multiplicity of per-episode oracle maxima",
+    )
+    fig.subplots_adjust(left=0.28, right=0.96, bottom=0.22, top=0.79)
+    save_pair(fig, "fig8_oracle_tie_structure")
+
+
 def main() -> None:
     configure_style()
     df, analysis, provenance = load_sources()
@@ -906,7 +1168,10 @@ def main() -> None:
     figure_reversed_order(analysis, df)
     figure_schedule_distributions(df)
     figure_architecture(df)
-    print("Generated 5 figures as SVG + 300 dpi PNG in", HERE)
+    figure_sparse_schedule_grid(df)
+    figure_oracle_concentration(df, analysis)
+    figure_oracle_ties(df, analysis)
+    print("Generated 8 figures as SVG + 300 dpi PNG in", HERE)
 
 
 if __name__ == "__main__":
