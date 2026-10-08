@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: CPU tests and research probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install CPU validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install \
+            einops \
+            numpy \
+            pyyaml \
+            pydantic \
+            hydra-core \
+            omegaconf \
+            pytest \
+            ruff==0.6.5 \
+            black==24.8.0
+
+      - name: Run focused tests
+        run: pytest -q tests/
+
+      - name: Run lint checks
+        run: |
+          ruff check \
+            HRM/models/subgoal_head.py \
+            HRM/models/hrm/hrm_act_v1.py \
+            HRM/models/losses.py \
+            scripts/check_param_count.py \
+            scripts/dump_hidden_states.py \
+            scripts/verify_ablation_flags.py \
+            tests/
+          black --check \
+            HRM/models/subgoal_head.py \
+            HRM/models/hrm/hrm_act_v1.py \
+            HRM/models/losses.py \
+            scripts/check_param_count.py \
+            scripts/dump_hidden_states.py \
+            scripts/verify_ablation_flags.py \
+            tests/
+
+      - name: Verify ablation invariants
+        run: |
+          python scripts/check_param_count.py
+          python scripts/verify_ablation_flags.py
