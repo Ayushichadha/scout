@@ -96,3 +96,13 @@ uses deterministic reconstructions, as described in the archived report.
 This is a code and summary release. It supports mechanism checks and training;
 exact historical numerical replay additionally requires the original data and
 checkpoint archives. Manuscript drafts, scratch work, and checkpoints are excluded.
+
+## Main paper result reproduction
+
+See [the result-to-code map](MAIN_RESULTS.md). The published episode matrix and
+trigger decision records now support checkpoint-free recomputation of the main
+analysis and regeneration of the figures:
+
+```bash
+python scripts/reproduce_paper_main_results.py
+```

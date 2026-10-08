@@ -1,0 +1,103 @@
+{
+  "artifact_paths": {
+    "analysis": "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/ceiling_analysis.md",
+    "matrix": "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/per_episode_matrix.csv",
+    "split_provenance": "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/split_provenance.json",
+    "summary": "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/analysis_summary.json"
+  },
+  "bootstrap_replicates": 10000,
+  "checkpoint_path": "/Users/ayushi/Documents/hrm_research/experiments/meta_agents_adaptive_400step/20260820T101100Z_adaptive_eta0_seed0_400step/checkpoints/step_400",
+  "checkpoint_sha256_at_finalization": "165586ca87a5ca473b342ccb4342afd72890817498c87319964356aa37313889",
+  "checkpoint_sha256_expected": "165586ca87a5ca473b342ccb4342afd72890817498c87319964356aa37313889",
+  "deterministic_algorithms_during_evaluation": true,
+  "git_head": "857d384317264b08be44f82e93009346fad3a4eb",
+  "git_status_full": "On branch learned-persistence-v2\nChanges to be committed:\n  (use \"git restore --staged <file>...\" to unstage)\n\tnew file:   AGENTS.md\n\tnew file:   eval_checkpoint.py\n\tnew file:   scripts/analyze_alignment_metrics.py\n\tnew file:   scripts/eval_checkpoints_local.py\n\tmodified:   scripts/plot_feudal_weight_sweep.py\n\tmodified:   scripts/plot_manager_period_sweep.py\n\tmodified:   scripts/plot_replication_distribution.py\n\tnew file:   scripts/summarize_paper_metrics.py\n\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   HRM/config/arch/hrm_v1.yaml\n\tmodified:   HRM/config/cfg_pretrain.yaml\n\tmodified:   HRM/models/hrm/hrm_act_v1.py\n\tmodified:   HRM/models/losses.py\n\tmodified:   HRM/models/subgoal_head.py\n\tmodified:   HRM/pretrain.py\n\tmodified:   HRM/puzzle_dataset.py\n\tmodified:   eval_checkpoint.py\n\tmodified:   scripts/eval_checkpoints_local.py\n\tmodified:   tests/test_fixed_period_directional.py\n\nUntracked files:\n  (use \"git add <file>...\" to include in what will be committed)\n\t.claude/\n\tHRM/config/arch/hrm_v1_counterfactual_v2.yaml\n\tHRM/utils/seeding.py\n\tSubGoal_Augmented_HRM_Research.pdf\n\tSubGoal_Augmented_HRM_Research_extracted.txt\n\tanalysis/META_AGENTS_ADAPTIVE_ETA0_SANITY_PILOT.md\n\tanalysis/META_AGENTS_ADAPTIVE_THRESHOLD_AUDIT.md\n\tanalysis/META_AGENTS_FIXED_P_3SEED_BASELINE.md\n\tanalysis/META_AGENTS_FIXED_P_SEED0_PILOT.md\n\tanalysis/ONE_STEP_MANAGER_CREDIT.md\n\tanalysis/counterfactual_persistence_v2_diagnostic/\n\tanalysis/counterfactual_persistence_v2_within_pass/\n\tanalysis/figures/\n\toutput/\n\tscratch/\n\tscripts/probe_seed_reproducibility.py\n\tscripts/run_adaptive_400step.py\n\tscripts/run_adaptive_matched_budget.py\n\tscripts/run_adaptive_sanity_pilot.py\n\tscripts/run_adaptive_step400_audit.py\n\tscripts/run_counterfactual_persistence_v2_diagnostic.py\n\tscripts/run_counterfactual_v2_within_pass_diagnostic.py\n\tscripts/run_frozen_schedule_control.py\n\tscripts/run_meta_agents_fixed_p.py\n\tscripts/run_schedule_sweep_k2.py\n\ttests/test_adaptive_400step_runner.py\n\ttests/test_adaptive_matched_budget.py\n\ttests/test_adaptive_step400_audit.py\n\ttests/test_counterfactual_persistence_v2.py\n\ttests/test_experiment_seeding.py\n\ttests/test_frozen_schedule_control.py\n\ttests/test_learned_replanning.py\n\ttests/test_schedule_sweep_k2.py\n\n",
+  "library_versions": {
+    "numpy": "2.2.0",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.13.5 (v3.13.5:6cb20a219a8, Jun 11 2025, 12:23:45) [Clang 16.0.0 (clang-1600.0.26.6)]",
+    "torch": "2.8.0"
+  },
+  "loaded_model_state_sha256": "adca3168580dc1095f67892401c71213dc045c900f4e6934fcd16f747781580f",
+  "model_state_verified_after_every_evaluation": true,
+  "runs": [
+    {
+      "output_paths": [
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_2_rows.csv",
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_2_diagnostics.json"
+      ],
+      "schedule": [
+        1,
+        2
+      ],
+      "wall_clock_seconds_inferred_from_consecutive_artifact_mtimes": 484.21452283859253
+    },
+    {
+      "output_paths": [
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_3_rows.csv",
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_3_diagnostics.json"
+      ],
+      "schedule": [
+        1,
+        3
+      ],
+      "wall_clock_seconds_inferred_from_consecutive_artifact_mtimes": 517.487455368042
+    },
+    {
+      "output_paths": [
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_4_rows.csv",
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_4_diagnostics.json"
+      ],
+      "schedule": [
+        1,
+        4
+      ],
+      "wall_clock_seconds_inferred_from_consecutive_artifact_mtimes": 490.9912533760071
+    },
+    {
+      "output_paths": [
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_5_rows.csv",
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_5_diagnostics.json"
+      ],
+      "schedule": [
+        1,
+        5
+      ],
+      "wall_clock_seconds_inferred_from_consecutive_artifact_mtimes": 447.75482177734375
+    },
+    {
+      "output_paths": [
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_6_rows.csv",
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_6_diagnostics.json"
+      ],
+      "schedule": [
+        1,
+        6
+      ],
+      "wall_clock_seconds_inferred_from_consecutive_artifact_mtimes": 5081.052552938461
+    },
+    {
+      "output_paths": [
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_7_rows.csv",
+        "/Users/ayushi/Documents/hrm_research/experiments/schedule_sweep_k2/schedule_1_7_diagnostics.json"
+      ],
+      "schedule": [
+        1,
+        7
+      ],
+      "wall_clock_seconds_inferred_from_consecutive_artifact_mtimes": 28713.564414024353
+    }
+  ],
+  "schema_version": "schedule_sweep_k2_v1",
+  "seeds": {
+    "bootstrap": 20260822,
+    "evaluation": 20260819
+  },
+  "split_digest": "2c38c7c804baca6f48c050069dcb772be9c5ae3ee423f0f277e79162c4cbc506",
+  "split_size": 3686,
+  "wall_clock": {
+    "evaluation_elapsed_seconds_inferred_from_artifact_mtimes": 35735.0650203228,
+    "finalization_seconds": 1.1234112919773906,
+    "note": "Evaluation frontend detached after schedule 7; elapsed evaluation time is reconstructed from preserved artifact mtimes and includes detached/paused wall time."
+  }
+}

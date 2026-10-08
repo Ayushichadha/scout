@@ -1,0 +1,213 @@
+{
+  "coarse_interval": [
+    0.4978,
+    0.4983
+  ],
+  "neighboring_rows": [
+    {
+      "absolute_budget_error": 0.0010857763300760048,
+      "eligible_decisions": 5526,
+      "episodes": 921,
+      "hard_intervention_rate": 0.166847629388346,
+      "mean_adaptive_interventions": 1.001085776330076,
+      "mean_beta": 0.49804905563366403,
+      "mean_total_interventions": 2.001085776330076,
+      "threshold": 0.498199
+    },
+    {
+      "absolute_budget_error": 0.0,
+      "eligible_decisions": 5526,
+      "episodes": 921,
+      "hard_intervention_rate": 0.16666666666666666,
+      "mean_adaptive_interventions": 1.0,
+      "mean_beta": 0.4980490723900548,
+      "mean_total_interventions": 2.0,
+      "threshold": 0.4982
+    },
+    {
+      "absolute_budget_error": 0.004343105320304019,
+      "eligible_decisions": 5526,
+      "episodes": 921,
+      "hard_intervention_rate": 0.16594281577994932,
+      "mean_adaptive_interventions": 0.995656894679696,
+      "mean_beta": 0.49804896272656884,
+      "mean_total_interventions": 1.995656894679696,
+      "threshold": 0.498201
+    }
+  ],
+  "refinement_steps": [
+    0.0001,
+    1e-05,
+    1e-06
+  ],
+  "selected_row": {
+    "absolute_budget_error": 0.0,
+    "eligible_decisions": 5526,
+    "episodes": 921,
+    "hard_intervention_rate": 0.16666666666666666,
+    "mean_adaptive_interventions": 1.0,
+    "mean_beta": 0.4980490723900548,
+    "mean_total_interventions": 2.0,
+    "threshold": 0.4982
+  },
+  "selected_schedule": {
+    "adaptive_intervention_frequency_by_position": {
+      "2": 0.991313789359392,
+      "3": 0.003257328990228013,
+      "4": 0.003257328990228013,
+      "5": 0.002171552660152009,
+      "6": 0.0,
+      "7": 0.0
+    },
+    "beta_by_eligible_pass": {
+      "2": {
+        "count": 921,
+        "max": 0.498276948928833,
+        "mean": 0.49823266604306515,
+        "min": 0.49817952513694763,
+        "std": 1.165214516722003e-05
+      },
+      "3": {
+        "count": 921,
+        "max": 0.4982045590877533,
+        "mean": 0.4980636022248822,
+        "min": 0.4980052709579468,
+        "std": 2.703284548139314e-05
+      },
+      "4": {
+        "count": 921,
+        "max": 0.4982936382293701,
+        "mean": 0.4980425540515577,
+        "min": 0.497959166765213,
+        "std": 2.6392447399437628e-05
+      },
+      "5": {
+        "count": 921,
+        "max": 0.4982466995716095,
+        "mean": 0.49802490916754344,
+        "min": 0.4979243874549866,
+        "std": 2.2282603419601373e-05
+      },
+      "6": {
+        "count": 921,
+        "max": 0.49812793731689453,
+        "mean": 0.49799330534168745,
+        "min": 0.4978707432746887,
+        "std": 2.7559479526617495e-05
+      },
+      "7": {
+        "count": 921,
+        "max": 0.497989296913147,
+        "mean": 0.49793739751159305,
+        "min": 0.4978252351284027,
+        "std": 3.052959147720077e-05
+      }
+    },
+    "conditional_feature_means": {
+      "intervene": {
+        "count": 921,
+        "means": {
+          "c": 0.04688201817389614,
+          "d": 0.04688201817389614,
+          "dwell": 0.125,
+          "gate": 0.38116151214163674,
+          "q": -0.002130025345528747,
+          "rho": 0.04688201817389614
+        }
+      },
+      "retain": {
+        "count": 4605,
+        "means": {
+          "c": 0.1761561668377843,
+          "d": 0.05194346837893565,
+          "dwell": 0.3754071661237785,
+          "gate": 0.43338108498291655,
+          "q": -0.002046531840984939,
+          "rho": 0.027909174180881857
+        }
+      }
+    },
+    "dwell_histogram": {
+      "1": 921,
+      "3": 2,
+      "4": 1,
+      "6": 910,
+      "7": 8
+    },
+    "eligible_decisions": 5526,
+    "episodes": 921,
+    "hard_intervention_rate": 0.16666666666666666,
+    "hard_replacement_goal_cosine": {
+      "count": 921,
+      "mean": 0.8092301025193884
+    },
+    "intervention_position_histogram": {
+      "1": 921,
+      "2": 913,
+      "3": 3,
+      "4": 3,
+      "5": 2,
+      "6": 0,
+      "7": 0
+    },
+    "mean_adaptive_interventions": 1.0,
+    "mean_beta": 0.4980490723900548,
+    "mean_dwell": 3.5,
+    "mean_total_interventions": 2.0,
+    "median_dwell": 2.0,
+    "most_common_schedules": [
+      {
+        "count": 910,
+        "fraction": 0.988056460369164,
+        "positions": [
+          1,
+          2
+        ]
+      },
+      {
+        "count": 8,
+        "fraction": 0.008686210640608035,
+        "positions": [
+          1
+        ]
+      },
+      {
+        "count": 2,
+        "fraction": 0.002171552660152009,
+        "positions": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "count": 1,
+        "fraction": 0.0010857763300760044,
+        "positions": [
+          1,
+          2,
+          3,
+          4
+        ]
+      }
+    ],
+    "schedule_entropy_bits": 0.1065061094699313,
+    "threshold": 0.4982,
+    "total_intervention_count_distribution": {
+      "1": 8,
+      "2": 910,
+      "4": 1,
+      "5": 2
+    },
+    "unique_replanning_schedules": 4
+  },
+  "selected_threshold": 0.4982,
+  "selection_key": [
+    "absolute_budget_error",
+    "threshold"
+  ],
+  "target_mean_total_interventions": 2.0,
+  "task_metrics_available_to_selector": false
+}
