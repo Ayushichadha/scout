@@ -1,11 +1,18 @@
 # Beyond the Clock: Scout's second paper
 
-Code release for the Meta-Agents study. The current manuscript title is
-**When Should a Manager Intervene? Diagnosing Learned Subgoal Timing in
-Hierarchical Reasoning Models**. This work extends Scout's latent manager/worker
+Code release for [the published arXiv paper](https://arxiv.org/abs/2609.00874).
+The earlier workshop draft used a different title. This work extends Scout's latent manager/worker
 mechanism with persistent directional commitments and a learned replanning trigger.
 
-## Main result
+## Published scope
+
+The arXiv study includes three precommitted adaptive seeds. Their policies differ,
+but none beats the best tested forced schedule on its own frozen checkpoint.
+Clock collapse is specific to seed 0. Seeds 1 and 2 are audited by
+`scripts/run_adaptive_replication_audit.py`; their selected archived reports and
+comparison tables are under `results/replications/`.
+
+## Seed-0 mechanistic results
 
 Under eight refinement passes and a calibrated mean of two commitments per episode,
 the seed-0 adaptive trigger chooses schedule [1,2] in 99.19% of final episodes.
