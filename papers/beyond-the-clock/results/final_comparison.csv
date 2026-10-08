@@ -1,0 +1,4 @@
+condition,actual_mean_k,token_accuracy,exact_accuracy,lm_loss_per_executed_pass,lm_loss_per_completed_episode,mean_refinement_passes,dominant_schedule
+fixed_p4,2.0,0.481321455482535,0.0,1.9580751037356325,15.66460082988506,8.0,"[1, 4]"
+fixed_p6,2.0,0.4855954550566456,0.0,1.9574606393334033,15.659685114667226,8.0,"[1, 6]"
+adaptive_calibrated,2.0008138903960933,0.4670146158926706,0.0,1.9578857266026521,15.663085812821217,8.0,"[1, 2]"

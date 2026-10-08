@@ -1,2 +1,8 @@
 Scout is an experimental subgoal-augmented extension of Sapient’s Hierarchical Reasoning Model (HRM), where a slow “manager” emits FeUdal-style directional goals in latent space and a fast “worker” is trained to align its hidden-state trajectory with those directions via an intrinsic feudal loss. The repo plugs into the upstream HRM codebase to study how temporally sparse, vector-valued subgoals and commitment windows (controlled by `manager_period` and `feudal_loss_weight`) affect long-horizon credit assignment and abstraction-heavy reasoning (e.g., ARC-style tasks).
 
+
+## Second paper: Beyond the Clock
+
+The Meta-Agents study adds persistent commitments, learned replanning, and
+compute-matched timing controls. See [the code release guide](papers/beyond-the-clock/README.md)
+for mechanism checks, training commands, results, and replay requirements.

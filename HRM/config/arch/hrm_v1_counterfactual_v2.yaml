@@ -4,10 +4,11 @@ loss:
   loss_type: stablemax_cross_entropy
   feudal_loss_weight: 0.1
   intervention_weight: 0.0
+  counterfactual_critic_weight: 1.0
 
 halt_exploration_prob: 0.1
 halt_max_steps: 16
-fixed_refinement_steps: null
+fixed_refinement_steps: 8
 
 H_cycles: 2
 L_cycles: 2
@@ -16,7 +17,7 @@ H_layers: 4
 L_layers: 4
 
 hidden_size: 512
-num_heads: 8  # min(2, hidden_size // 64)
+num_heads: 8
 expansion: 4
 
 puzzle_emb_ndim: ${.hidden_size}
@@ -38,6 +39,7 @@ subgoal_head:
   random_directions: false
   directional_displacement: true
   initial_goal_only: false
-  replan_mode: fixed
+  replan_mode: counterfactual_v2
   trigger_threshold: 0.5
   trigger_stochastic_train: true
+  counterfactual_replan_cost: 0.01

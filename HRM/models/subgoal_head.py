@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -54,6 +54,11 @@ class SubgoalHeadConfig(BaseModel):
     use_alignment_loss: bool = True
     random_directions: bool = False
     directional_displacement: bool = False
+    initial_goal_only: bool = False
+    replan_mode: Literal["fixed", "adaptive", "counterfactual_v2"] = "fixed"
+    trigger_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    trigger_stochastic_train: bool = True
+    counterfactual_replan_cost: float = Field(default=0.01, ge=0.0)
 
 
 @dataclass
@@ -93,6 +98,164 @@ class SubgoalHeadOutput:
     logits: Optional[Tensor]
     probs: Optional[Tensor]
     updated: Tensor
+
+
+@dataclass
+class AdaptiveTriggerState:
+    """Minimal detached episode-scoped observations for adaptive re-planning."""
+
+    previous_worker_repr: Tensor
+    previous_cumulative: Tensor
+    dwell: Tensor
+    has_previous_worker_repr: Tensor
+
+    def detach(self) -> "AdaptiveTriggerState":
+        return AdaptiveTriggerState(
+            previous_worker_repr=self.previous_worker_repr.detach(),
+            previous_cumulative=self.previous_cumulative.detach(),
+            dwell=self.dwell.detach(),
+            has_previous_worker_repr=self.has_previous_worker_repr.detach(),
+        )
+
+
+def _directional_cosine(displacement: Tensor, goal: Tensor) -> Tensor:
+    displacement = displacement.to(torch.float32)
+    goal = goal.to(torch.float32)
+    return (
+        F.normalize(displacement, dim=-1, eps=1e-8)
+        * F.normalize(goal, dim=-1, eps=1e-8)
+    ).sum(dim=-1)
+
+
+def adaptive_trigger_features(
+    *,
+    worker_repr: Tensor,
+    previous_worker_repr: Tensor,
+    previous_cumulative: Tensor,
+    dwell: Tensor,
+    q_halt_logits: Tensor,
+    q_continue_logits: Tensor,
+    active_goal: Tensor,
+    active_gate: Tensor,
+    active_anchor: Tensor,
+    max_passes: int,
+) -> Tensor:
+    """Build the exact detached six-feature adaptive trigger observation."""
+    worker = worker_repr.to(torch.float32)
+    goal = active_goal.to(torch.float32)
+    cumulative = _directional_cosine(worker - active_anchor, goal)
+    latest = _directional_cosine(worker - previous_worker_repr, goal)
+    trend = cumulative - previous_cumulative.to(torch.float32)
+    normalized_dwell = dwell.to(torch.float32) / float(max_passes)
+    halt_confidence = torch.sigmoid(q_halt_logits.to(torch.float32)) - torch.sigmoid(
+        q_continue_logits.to(torch.float32)
+    )
+    gate = active_gate.to(torch.float32).squeeze(-1)
+    return torch.stack(
+        (cumulative, latest, trend, normalized_dwell, halt_confidence, gate), dim=-1
+    ).detach()
+
+
+class AdaptiveReplanTrigger(nn.Module):
+    """Interpretable affine Bernoulli policy over six detached features."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.linear = nn.Linear(6, 1, bias=True)
+        with torch.no_grad():
+            self.linear.weight.zero_()
+            self.linear.bias.zero_()
+
+    def forward(self, features: Tensor) -> Tensor:
+        if features.shape[-1] != 6:
+            raise ValueError(f"adaptive trigger expects [..., 6], got {features.shape}")
+        return torch.sigmoid(self.linear(features.to(torch.float32))).squeeze(-1)
+
+    def decide(
+        self,
+        features: Tensor,
+        *,
+        training: bool,
+        stochastic_train: bool,
+        threshold: float,
+        eligible: Optional[Tensor] = None,
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        probability = self(features)
+        if training and stochastic_train:
+            if eligible is None:
+                hard = torch.bernoulli(probability).to(torch.bool)
+            else:
+                eligible = eligible.to(device=probability.device, dtype=torch.bool)
+                if eligible.shape != probability.shape:
+                    raise ValueError(
+                        "eligible mask must match trigger probability shape, got "
+                        f"{tuple(eligible.shape)} and {tuple(probability.shape)}"
+                    )
+                eligible_hard = torch.bernoulli(probability.masked_select(eligible)).to(
+                    torch.bool
+                )
+                hard = torch.zeros_like(eligible).masked_scatter(
+                    eligible, eligible_hard
+                )
+        else:
+            hard = probability > threshold
+            if eligible is not None:
+                hard = hard & eligible.to(device=hard.device, dtype=torch.bool)
+        straight_through = (
+            probability + (hard.to(probability.dtype) - probability).detach()
+        )
+        return probability, hard, straight_through
+
+
+def counterfactual_critic_features(
+    *,
+    worker_repr: Tensor,
+    active_goal: Tensor,
+    active_anchor: Tensor,
+    candidate_goal: Tensor,
+) -> Tensor:
+    """Return the two decision-time signals used by persistence v2.
+
+    The input path is deliberately closed over only geometrically meaningful
+    state available after the current pass: cumulative progress under the
+    committed goal and cosine disagreement with the candidate goal.  No pass,
+    dwell, or other clock variable is accepted by this function.  Detaching
+    here prevents either the critic loss or its decision features from shaping
+    the reasoning model or manager projections.
+    """
+
+    progress = _directional_cosine(worker_repr - active_anchor, active_goal)
+    similarity = F.cosine_similarity(
+        active_goal.to(torch.float32),
+        candidate_goal.to(torch.float32),
+        dim=-1,
+        eps=1e-8,
+    )
+    return torch.stack((progress, 1.0 - similarity), dim=-1).detach()
+
+
+class CounterfactualPersistenceCritic(nn.Module):
+    """Tiny regressor for the detached replanning advantage target."""
+
+    def __init__(self, hidden_size: int = 4) -> None:
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Linear(2, hidden_size),
+            nn.Tanh(),
+            nn.Linear(hidden_size, 1),
+        )
+        # Start with neutral evidence, so the positive deliberation cost makes
+        # the initial deterministic policy persist.
+        with torch.no_grad():
+            self.network[-1].weight.zero_()
+            self.network[-1].bias.zero_()
+
+    def forward(self, features: Tensor) -> Tensor:
+        if features.shape[-1] != 2:
+            raise ValueError(
+                f"counterfactual critic expects [..., 2], got {features.shape}"
+            )
+        return self.network(features.to(torch.float32)).squeeze(-1)
 
 
 class SubgoalHead(nn.Module):
