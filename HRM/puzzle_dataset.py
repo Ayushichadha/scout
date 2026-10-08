@@ -11,7 +11,14 @@ from models.losses import IGNORE_LABEL_ID
 from dataset.common import PuzzleDatasetMetadata
 
 
-def _sample_batch(rng: np.random.Generator, group_order: np.ndarray, puzzle_indices: np.ndarray, group_indices: np.ndarray, start_index: int, global_batch_size: int):
+def _sample_batch(
+    rng: np.random.Generator,
+    group_order: np.ndarray,
+    puzzle_indices: np.ndarray,
+    group_indices: np.ndarray,
+    start_index: int,
+    global_batch_size: int,
+):
     # Pack examples into a full batch
     batch = []
     batch_puzzle_indices = []
@@ -31,7 +38,7 @@ def _sample_batch(rng: np.random.Generator, group_order: np.ndarray, puzzle_indi
 
         # Put into batch
         batch_puzzle_indices.append(np.full(append_size, puzzle_id, dtype=np.int32))
-        batch.append(puzzle_start + np.random.choice(puzzle_size, append_size, replace=False))
+        batch.append(puzzle_start + rng.choice(puzzle_size, append_size, replace=False))
 
         current_size += append_size
 
@@ -57,10 +64,14 @@ class PuzzleDataset(IterableDataset):
         self.split = split
         self._synthetic = False
         self.metadata = self._load_metadata()
-        
+
         # Checks
-        assert self.config.global_batch_size % self.config.num_replicas == 0, f"Global batch size {self.config.global_batch_size} must be multiples of nodes {self.config.num_replicas}."
-        self.local_batch_size = self.config.global_batch_size // self.config.num_replicas
+        assert (
+            self.config.global_batch_size % self.config.num_replicas == 0
+        ), f"Global batch size {self.config.global_batch_size} must be multiples of nodes {self.config.num_replicas}."
+        self.local_batch_size = (
+            self.config.global_batch_size // self.config.num_replicas
+        )
 
         # State
         self._data = None
@@ -92,11 +103,10 @@ class PuzzleDataset(IterableDataset):
         field_mmap_modes = {
             "inputs": "r",
             "labels": "r",
-
             # Keep indices in memory
             "puzzle_identifiers": None,
             "puzzle_indices": None,
-            "group_indices": None
+            "group_indices": None,
         }
 
         # Load data
@@ -104,7 +114,14 @@ class PuzzleDataset(IterableDataset):
         for set_name in self.metadata.sets:
             # Load subset
             self._data[set_name] = {
-                field_name: np.load(os.path.join(self.config.dataset_path, self.split, f"{set_name}__{field_name}.npy"), mmap_mode=mmap_mode)
+                field_name: np.load(
+                    os.path.join(
+                        self.config.dataset_path,
+                        self.split,
+                        f"{set_name}__{field_name}.npy",
+                    ),
+                    mmap_mode=mmap_mode,
+                )
                 for field_name, mmap_mode in field_mmap_modes.items()
             }
 
@@ -114,7 +131,9 @@ class PuzzleDataset(IterableDataset):
 
         # Convert ignore label IDs
         if self.metadata.ignore_label_id is not None:
-            batch["labels"][batch["labels"] == self.metadata.ignore_label_id] = IGNORE_LABEL_ID
+            batch["labels"][
+                batch["labels"] == self.metadata.ignore_label_id
+            ] = IGNORE_LABEL_ID
 
         # Pad
         if batch["puzzle_identifiers"].size < self.local_batch_size:
@@ -123,26 +142,46 @@ class PuzzleDataset(IterableDataset):
             pad_values = {
                 "inputs": self.metadata.pad_id,
                 "labels": IGNORE_LABEL_ID,
-
-                "puzzle_identifiers": self.metadata.blank_identifier_id
+                "puzzle_identifiers": self.metadata.blank_identifier_id,
             }
-            batch = {k: np.pad(v, ((0, pad_size), ) + ((0, 0), ) * (v.ndim - 1), constant_values=pad_values[k]) for k, v in batch.items()}
+            batch = {
+                k: np.pad(
+                    v,
+                    ((0, pad_size),) + ((0, 0),) * (v.ndim - 1),
+                    constant_values=pad_values[k],
+                )
+                for k, v in batch.items()
+            }
 
         # To tensor
         return {k: torch.from_numpy(v) for k, v in batch.items()}
-    
+
     def _iter_test(self):
         if self._synthetic:
             # Emit a couple of quick synthetic batches for evaluation
             rng = np.random.default_rng(self.config.seed)
             for _ in range(2):
-                inputs = rng.integers(0, self.metadata.vocab_size, size=(self.local_batch_size, self.metadata.seq_len), dtype=np.int32)
-                labels = rng.integers(0, self.metadata.vocab_size, size=(self.local_batch_size, self.metadata.seq_len), dtype=np.int32)
-                batch = self._collate_batch({
-                    "inputs": inputs,
-                    "labels": labels,
-                    "puzzle_identifiers": np.zeros((self.local_batch_size,), dtype=np.int32),
-                })
+                inputs = rng.integers(
+                    0,
+                    self.metadata.vocab_size,
+                    size=(self.local_batch_size, self.metadata.seq_len),
+                    dtype=np.int32,
+                )
+                labels = rng.integers(
+                    0,
+                    self.metadata.vocab_size,
+                    size=(self.local_batch_size, self.metadata.seq_len),
+                    dtype=np.int32,
+                )
+                batch = self._collate_batch(
+                    {
+                        "inputs": inputs,
+                        "labels": labels,
+                        "puzzle_identifiers": np.zeros(
+                            (self.local_batch_size,), dtype=np.int32
+                        ),
+                    }
+                )
                 yield "synthetic", batch, self.config.global_batch_size
             return
 
@@ -153,28 +192,45 @@ class PuzzleDataset(IterableDataset):
             start_index = 0
             while start_index < total_examples:
                 # Compute indices
-                end_index = min(total_examples, start_index + self.config.global_batch_size)
-                
+                end_index = min(
+                    total_examples, start_index + self.config.global_batch_size
+                )
+
                 local_start = start_index + self.config.rank * self.local_batch_size
-                local_end   = min(start_index + (self.config.rank + 1) * self.local_batch_size, end_index)
-                
+                local_end = min(
+                    start_index + (self.config.rank + 1) * self.local_batch_size,
+                    end_index,
+                )
+
                 # Get batch of examples, and also puzzle IDs
                 puzzle_indices = []
-                puzzle_index = np.searchsorted(dataset["puzzle_indices"], local_start, side="right") - 1
+                puzzle_index = (
+                    np.searchsorted(
+                        dataset["puzzle_indices"], local_start, side="right"
+                    )
+                    - 1
+                )
                 for i in range(local_start, local_end):
-                    while puzzle_index + 1 < len(dataset["puzzle_indices"]) and i >= dataset["puzzle_indices"][puzzle_index + 1]:
+                    while (
+                        puzzle_index + 1 < len(dataset["puzzle_indices"])
+                        and i >= dataset["puzzle_indices"][puzzle_index + 1]
+                    ):
                         puzzle_index += 1
 
                     puzzle_indices.append(puzzle_index)
-                
-                batch = self._collate_batch({
-                    "inputs": dataset["inputs"][local_start: local_end],
-                    "labels": dataset["labels"][local_start: local_end],
-                    "puzzle_identifiers": dataset["puzzle_identifiers"][puzzle_indices]
-                })
+
+                batch = self._collate_batch(
+                    {
+                        "inputs": dataset["inputs"][local_start:local_end],
+                        "labels": dataset["labels"][local_start:local_end],
+                        "puzzle_identifiers": dataset["puzzle_identifiers"][
+                            puzzle_indices
+                        ],
+                    }
+                )
 
                 yield set_name, batch, end_index - start_index
-                
+
                 # Advance to next batch
                 start_index += self.config.global_batch_size
 
@@ -183,13 +239,27 @@ class PuzzleDataset(IterableDataset):
             # Infinite generator of synthetic batches; outer loop will break on max_steps
             rng = np.random.default_rng(self.config.seed)
             while True:
-                inputs = rng.integers(0, self.metadata.vocab_size, size=(self.local_batch_size, self.metadata.seq_len), dtype=np.int32)
-                labels = rng.integers(0, self.metadata.vocab_size, size=(self.local_batch_size, self.metadata.seq_len), dtype=np.int32)
-                batch = self._collate_batch({
-                    "inputs": inputs,
-                    "labels": labels,
-                    "puzzle_identifiers": np.zeros((self.local_batch_size,), dtype=np.int32),
-                })
+                inputs = rng.integers(
+                    0,
+                    self.metadata.vocab_size,
+                    size=(self.local_batch_size, self.metadata.seq_len),
+                    dtype=np.int32,
+                )
+                labels = rng.integers(
+                    0,
+                    self.metadata.vocab_size,
+                    size=(self.local_batch_size, self.metadata.seq_len),
+                    dtype=np.int32,
+                )
+                batch = self._collate_batch(
+                    {
+                        "inputs": inputs,
+                        "labels": labels,
+                        "puzzle_identifiers": np.zeros(
+                            (self.local_batch_size,), dtype=np.int32
+                        ),
+                    }
+                )
                 yield "synthetic", batch, self.config.global_batch_size
             # unreachable
 
@@ -198,11 +268,18 @@ class PuzzleDataset(IterableDataset):
             self._iters += 1
 
             # Randomly shuffle groups
-            rng = np.random.Generator(np.random.Philox(seed=self.config.seed + self._iters))
+            rng = np.random.Generator(
+                np.random.Philox(seed=self.config.seed + self._iters)
+            )
 
-            group_order = np.concatenate([rng.permutation(dataset["group_indices"].size - 1) for _i in range(self.config.epochs_per_iter)])
+            group_order = np.concatenate(
+                [
+                    rng.permutation(dataset["group_indices"].size - 1)
+                    for _i in range(self.config.epochs_per_iter)
+                ]
+            )
             start_index = 0
-            
+
             while start_index < group_order.size:
                 start_index, batch_indices, batch_puzzle_indices = _sample_batch(
                     rng,
@@ -214,28 +291,44 @@ class PuzzleDataset(IterableDataset):
                 )
 
                 # Select current rank and collate
-                global_effective_batch_size = batch_puzzle_indices.size  # Global effective batch size, excluding pads
+                global_effective_batch_size = (
+                    batch_puzzle_indices.size
+                )  # Global effective batch size, excluding pads
 
                 # Drop last batch
                 if global_effective_batch_size < self.config.global_batch_size:
                     break
 
-                batch_indices        = batch_indices       [self.config.rank * self.local_batch_size: (self.config.rank + 1) * self.local_batch_size]
-                batch_puzzle_indices = batch_puzzle_indices[self.config.rank * self.local_batch_size: (self.config.rank + 1) * self.local_batch_size]
-                batch = self._collate_batch({
-                    "inputs": dataset["inputs"][batch_indices],
-                    "labels": dataset["labels"][batch_indices],
-                    "puzzle_identifiers": dataset["puzzle_identifiers"][batch_puzzle_indices]
-                })
+                batch_indices = batch_indices[
+                    self.config.rank
+                    * self.local_batch_size : (self.config.rank + 1)
+                    * self.local_batch_size
+                ]
+                batch_puzzle_indices = batch_puzzle_indices[
+                    self.config.rank
+                    * self.local_batch_size : (self.config.rank + 1)
+                    * self.local_batch_size
+                ]
+                batch = self._collate_batch(
+                    {
+                        "inputs": dataset["inputs"][batch_indices],
+                        "labels": dataset["labels"][batch_indices],
+                        "puzzle_identifiers": dataset["puzzle_identifiers"][
+                            batch_puzzle_indices
+                        ],
+                    }
+                )
 
                 yield set_name, batch, global_effective_batch_size
-                
+
     def __iter__(self):
         worker_info = get_worker_info()
-        assert worker_info is None or worker_info.num_workers == 1, "Multithreaded data loading is not currently supported."
-        
+        assert (
+            worker_info is None or worker_info.num_workers == 1
+        ), "Multithreaded data loading is not currently supported."
+
         self._lazy_load_dataset()
-        
+
         # Iterate using specified mode
         if self.config.test_set_mode:
             yield from self._iter_test()

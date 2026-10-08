@@ -15,6 +15,7 @@ device: cuda        # override with device=cpu for CPU-only
 max_steps: null     # optional clamp for smoke tests
 enable_wandb: true  # set enable_wandb=false to disable logging
 seed: 0
+run_summary_path: null  # optional structured metrics output for experiment runners
 
 # Quick-mode helpers (safe tiny defaults)
 quick_overfit: false

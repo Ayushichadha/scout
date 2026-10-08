@@ -10,7 +10,13 @@ temporally persistent directional goals for a fast worker in latent space.
 It is research code: interfaces and conclusions may change as controls and
 replications are added.
 
-## Current baseline
+## Second paper: Beyond the Clock
+
+The Meta-Agents study adds persistent commitments, learned replanning, and
+compute-matched timing controls. See [the code release guide](papers/beyond-the-clock/README.md)
+for mechanism checks, training commands, results, and replay requirements.
+
+## Fixed-period baseline
 
 The corrected fixed-period baseline implements the following causal sequence:
 
@@ -28,13 +34,15 @@ The first worker pass of a fresh episode remains unsteered because manager
 emission happens after worker computation. The forced initial goal is first
 consumed on the following outer call.
 
-## Scientific caveat
+## Fixed-period baseline caveat
 
 Cached commitments are intentionally detached across ACT calls to preserve the
 existing truncated-gradient contract. Consequently, causal displacement loss
 trains the worker and `V_L`, but does not backpropagate into `goal_proj` or the
 gate projection. Treat this as a baseline limitation, not evidence that the
-manager direction policy is learned end to end.
+manager direction policy is learned end to end. The second-paper implementation
+adds explicit manager and trigger credit paths; see its release guide and gradient
+tests for the distinction from this detached baseline.
 
 ## Repository layout
 
@@ -108,10 +116,11 @@ python pretrain.py \
 
 ## Scope
 
-Scout currently provides a corrected fixed-period baseline. It does not yet
-implement a learned intervention trigger, intervention penalty,
-straight-through estimator, reduced manager space, multi-lag alignment, or
-adaptive halting changes.
+Scout provides the corrected fixed-period baseline and the second-paper
+implementation of persistent commitments, a learned intervention trigger,
+manager/trigger credit, and matched-budget timing controls. The release guide
+documents the scientific limits and the additional data/checkpoint requirements
+for exact historical replay.
 
 ## Upstream attribution
 

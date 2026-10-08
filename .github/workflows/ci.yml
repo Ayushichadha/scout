@@ -34,6 +34,10 @@ jobs:
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install \
             einops \
+            numpy \
+            pyyaml \
+            tqdm \
+            coolname \
             pydantic \
             hydra-core \
             omegaconf \

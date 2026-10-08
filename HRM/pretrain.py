@@ -1,5 +1,6 @@
 from typing import Optional, Any, Sequence, List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import json
 import os
 import math
 import yaml
@@ -25,7 +26,9 @@ except Exception:  # ImportError or backend load errors
 
 from puzzle_dataset import PuzzleDataset, PuzzleDatasetConfig, PuzzleDatasetMetadata
 from utils.functions import load_model_class, get_model_source_path
+from utils.seeding import seed_data_worker, seed_everything
 from models.sparse_embedding import CastedSparseEmbeddingSignSGD_Distributed
+from models.losses import accumulate_episode_metrics
 
 
 class LossConfig(pydantic.BaseModel):
@@ -92,8 +95,10 @@ class PretrainConfig(pydantic.BaseModel):
     checkpoint_every_eval: bool = False
     eval_interval: Optional[int] = None
     eval_save_outputs: List[str] = []
+    eval_replan_trace_path: Optional[str] = None
     # Whether to run an evaluation pass at the end
     final_eval: bool = True
+    run_summary_path: Optional[str] = None
 
 
 @dataclass
@@ -105,6 +110,9 @@ class TrainState:
 
     step: int
     total_steps: int
+    metric_totals: dict[str, float] = field(default_factory=dict)
+    latest_train_metrics: dict[str, float] = field(default_factory=dict)
+    latest_eval_metrics: Optional[dict[str, Any]] = None
 
 
 def create_dataloader(
@@ -136,6 +144,10 @@ def create_dataloader(
     # Only pass prefetch_factor when we have workers
     if num_workers > 0:
         dl_kwargs["prefetch_factor"] = 8
+        worker_generator = torch.Generator()
+        worker_generator.manual_seed(config.seed + rank)
+        dl_kwargs["generator"] = worker_generator
+        dl_kwargs["worker_init_fn"] = seed_data_worker
 
     dataloader = DataLoader(**dl_kwargs)
     return dataloader, dataset.metadata
@@ -351,6 +363,16 @@ def init_train_state(
     if config.max_steps is not None:
         total_steps = min(total_steps, int(config.max_steps))
 
+    fixed_steps = (config.arch.__pydantic_extra__ or {}).get("fixed_refinement_steps")
+    if fixed_steps is not None:
+        fixed_steps = int(fixed_steps)
+        if fixed_steps <= 0 or total_steps <= 0 or total_steps % fixed_steps:
+            raise ValueError(
+                f"Effective total_steps={total_steps} must be a positive multiple "
+                f"of arch.fixed_refinement_steps={fixed_steps} so fixed-compute "
+                "runs end on complete episode boundaries"
+            )
+
     # Model
     model, optimizers, optimizer_lrs = create_model(
         config, train_metadata, world_size=world_size
@@ -469,16 +491,25 @@ def train_batch(
 
         if rank == 0:
             metric_values = metric_values.cpu().numpy()
-            reduced_metrics = {k: metric_values[i] for i, k in enumerate(metric_keys)}
+            raw_metrics = {
+                k: float(metric_values[i]) for i, k in enumerate(metric_keys)
+            }
+            for key, value in raw_metrics.items():
+                train_state.metric_totals[key] = (
+                    train_state.metric_totals.get(key, 0.0) + value
+                )
 
             # Postprocess
-            count = max(reduced_metrics["count"], 1)  # Avoid NaNs
+            count = max(raw_metrics["count"], 1)  # Avoid NaNs
             reduced_metrics = {
                 f"train/{k}": v / (global_batch_size if k.endswith("loss") else count)
-                for k, v in reduced_metrics.items()
+                for k, v in raw_metrics.items()
             }
 
             reduced_metrics["train/lr"] = lr_this_step
+            train_state.latest_train_metrics = {
+                key: float(value) for key, value in reduced_metrics.items()
+            }
             return reduced_metrics
 
 
@@ -494,6 +525,7 @@ def evaluate(
         set_ids = {k: idx for idx, k in enumerate(eval_metadata.sets)}
 
         all_preds = {}
+        replan_trace = []
 
         metric_keys = []
         metric_values = None
@@ -509,13 +541,38 @@ def evaluate(
             carry = train_state.model.initial_carry(batch)  # type: ignore
 
             # Forward
+            episode_metrics = None
+            pass_index = 0
             while True:
+                pass_index += 1
+                return_keys = list(config.eval_save_outputs)
+                if config.eval_replan_trace_path is not None:
+                    return_keys.extend(
+                        [
+                            "adaptive_trigger_probability",
+                            "adaptive_trigger_hard",
+                            "adaptive_trigger_feature",
+                            "adaptive_dwell_after_pass",
+                            "adaptive_old_new_goal_cosine",
+                        ]
+                    )
                 carry, _, metrics, preds, all_finish = train_state.model(
-                    carry=carry, batch=batch, return_keys=config.eval_save_outputs
+                    carry=carry, batch=batch, return_keys=return_keys
                 )
+                if config.eval_replan_trace_path is not None:
+                    replan_trace.append(
+                        {
+                            "set_name": set_name,
+                            "pass": pass_index,
+                            **{key: value.cpu() for key, value in preds.items()},
+                        }
+                    )
+                episode_metrics = accumulate_episode_metrics(episode_metrics, metrics)
 
                 if all_finish:
                     break
+            assert episode_metrics is not None
+            metrics = episode_metrics
 
             for collection in (batch, preds):
                 for k, v in collection.items():
@@ -555,6 +612,11 @@ def evaluate(
                 ),
             )
 
+        if config.eval_replan_trace_path is not None and rank == 0:
+            trace_path = os.path.abspath(config.eval_replan_trace_path)
+            os.makedirs(os.path.dirname(trace_path), exist_ok=True)
+            torch.save(replan_trace, trace_path)
+
         # Logging
         # Reduce to rank 0
         if metric_values is not None:
@@ -574,11 +636,75 @@ def evaluate(
                 # Postprocess
                 for set_name, metrics in reduced_metrics.items():
                     count = metrics.pop("count")
-                    reduced_metrics[set_name] = {
-                        k: v / count for k, v in metrics.items()
-                    }
+                    raw = dict(metrics)
+                    normalized = {k: v / count for k, v in metrics.items()}
+                    completed = raw.get("completed_episodes", count)
+                    eligible = raw.get("trigger_probability_count", 0.0)
+                    dwell_count = raw.get("completed_dwell_count", 0.0)
+                    replacements = raw.get("old_new_goal_cosine_count", 0.0)
+                    if completed > 0:
+                        normalized["mean_total_interventions_per_episode"] = (
+                            raw.get("manager_interventions", 0.0) / completed
+                        )
+                        normalized["mean_adaptive_interventions_per_episode"] = (
+                            raw.get("adaptive_interventions", 0.0) / completed
+                        )
+                    if eligible > 0:
+                        normalized["mean_soft_trigger_probability"] = (
+                            raw.get("trigger_probability_sum", 0.0) / eligible
+                        )
+                        normalized["hard_adaptive_decision_rate"] = (
+                            raw.get("adaptive_interventions", 0.0) / eligible
+                        )
+                    if dwell_count > 0:
+                        normalized["mean_completed_dwell"] = (
+                            raw.get("completed_dwell_sum", 0.0) / dwell_count
+                        )
+                    if replacements > 0:
+                        normalized["mean_old_new_goal_cosine"] = (
+                            raw.get("old_new_goal_cosine_sum", 0.0) / replacements
+                        )
+                    for condition in ("intervene", "retain"):
+                        denominator = raw.get(f"trigger_feature_{condition}_count", 0.0)
+                        if denominator > 0:
+                            for feature in ("c", "d", "rho", "dwell", "q", "gate"):
+                                normalized[f"mean_feature_{feature}_{condition}"] = (
+                                    raw.get(
+                                        f"trigger_feature_{feature}_{condition}_sum",
+                                        0.0,
+                                    )
+                                    / denominator
+                                )
+                    reduced_metrics[set_name] = normalized
 
                 return reduced_metrics
+
+
+def evaluate_final_weights(
+    config: PretrainConfig,
+    train_state: TrainState,
+    eval_loader,
+    eval_metadata,
+    *,
+    rank: int,
+    world_size: int,
+) -> None:
+    """Evaluate current weights on every rank, replacing stale interval metrics."""
+    if not config.final_eval:
+        return
+    train_state.model.eval()
+    metrics = evaluate(
+        config,
+        train_state,
+        eval_loader,
+        eval_metadata,
+        rank=rank,
+        world_size=world_size,
+    )
+    if rank == 0:
+        train_state.latest_eval_metrics = (
+            normalize_eval_metrics(metrics) if metrics is not None else None
+        )
 
 
 def save_code_and_config(config: PretrainConfig):
@@ -613,6 +739,80 @@ def save_code_and_config(config: PretrainConfig):
                 _wandb.run.log_code(config.checkpoint_path)
     except Exception:
         pass
+
+
+def write_run_summary(config: PretrainConfig, train_state: TrainState) -> None:
+    """Write optional machine-readable metrics for experiment wrappers."""
+    if config.run_summary_path is None:
+        return
+
+    totals = train_state.metric_totals
+    completed = totals.get("completed_episodes", 0.0)
+    executed = totals.get("executed_refinement_passes", 0.0)
+    interventions = totals.get("manager_interventions", 0.0)
+    consumptions = totals.get("active_goal_consumptions", 0.0)
+    completed_steps = totals.get("completed_episode_refinement_steps", 0.0)
+
+    def ratio(numerator: float, denominator: float) -> Optional[float]:
+        return numerator / denominator if denominator > 0 else None
+
+    payload = {
+        "training_steps": train_state.step,
+        "raw_metric_totals": totals,
+        "latest_train_metrics": train_state.latest_train_metrics,
+        "validation_metrics": train_state.latest_eval_metrics,
+        "aggregates": {
+            "train_task_loss_per_executed_pass": ratio(
+                totals.get("lm_loss", 0.0), executed
+            ),
+            "directional_alignment_loss_per_executed_pass": ratio(
+                totals.get("feudal_loss", 0.0), executed
+            ),
+            "total_manager_interventions": interventions,
+            "completed_episodes": completed,
+            "mean_interventions_per_episode": ratio(interventions, completed),
+            "mean_commitment_duration": ratio(consumptions, interventions),
+            "total_executed_refinement_passes": executed,
+            "mean_executed_refinement_passes_per_episode": ratio(
+                completed_steps, completed
+            ),
+            "held_out_accuracy": None,
+            "mean_active_gate": ratio(
+                totals.get("active_gate_sum", 0.0),
+                totals.get("active_gate_count", 0.0),
+            ),
+            "mean_directional_cosine": ratio(
+                totals.get("directional_cosine_sum", 0.0),
+                totals.get("directional_cosine_count", 0.0),
+            ),
+            "fixed_compute_violations": totals.get("fixed_compute_violations", 0.0),
+            "unconsumed_terminal_emissions": totals.get(
+                "unconsumed_terminal_emissions", 0.0
+            ),
+        },
+    }
+    if train_state.latest_eval_metrics:
+        accuracies = [
+            metrics.get("accuracy")
+            for metrics in train_state.latest_eval_metrics.values()
+            if metrics.get("accuracy") is not None
+        ]
+        if accuracies:
+            payload["aggregates"]["held_out_accuracy"] = sum(accuracies) / len(
+                accuracies
+            )
+
+    output_path = os.path.abspath(config.run_summary_path)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+
+
+def normalize_eval_metrics(metrics: dict[str, Any]) -> dict[str, dict[str, float]]:
+    return {
+        set_name: {key: float(value) for key, value in set_metrics.items()}
+        for set_name, set_metrics in metrics.items()
+    }
 
 
 def load_synced_config(
@@ -781,8 +981,9 @@ def launch(hydra_config: DictConfig):
         arch.setdefault("H_cycles", 1)
         arch.setdefault("L_cycles", 1)
 
-    # Seed RNGs to ensure consistency
-    torch.random.manual_seed(config.seed + RANK)
+    # Seed every RNG used by model initialization and training. Distributed
+    # ranks retain the existing seed + rank convention.
+    seed_everything(config.seed, rank=RANK)
 
     # Dataset / eval cadence
     skip_eval = False
@@ -896,6 +1097,7 @@ def launch(hydra_config: DictConfig):
                 world_size=WORLD_SIZE,
             )
             if RANK == 0 and metrics is not None:
+                train_state.latest_eval_metrics = normalize_eval_metrics(metrics)
                 if config.enable_wandb:
                     try:
                         import wandb as _wandb
@@ -921,6 +1123,8 @@ def launch(hydra_config: DictConfig):
                 _wandb.finish()
         except Exception:
             pass
+        if RANK == 0:
+            write_run_summary(config, train_state)
         return
 
     # Training Loop
@@ -963,7 +1167,7 @@ def launch(hydra_config: DictConfig):
                 break
 
         # If we've reached the target number of steps, stop outer loop as well
-        # and skip the final evaluation to exit immediately.
+        # Final weights are evaluated after the training loop.
         if train_state.step >= train_state.total_steps:
             break
 
@@ -980,6 +1184,7 @@ def launch(hydra_config: DictConfig):
             )
 
             if RANK == 0 and metrics is not None:
+                train_state.latest_eval_metrics = normalize_eval_metrics(metrics)
                 if config.enable_wandb:
                     try:
                         import wandb as _wandb
@@ -998,7 +1203,25 @@ def launch(hydra_config: DictConfig):
         if train_state.step >= train_state.total_steps:
             break
 
-    # finalize
+    # Always reevaluate final weights, even after intermediate evaluations.
+    evaluate_final_weights(
+        config,
+        train_state,
+        eval_loader,
+        eval_metadata,
+        rank=RANK,
+        world_size=WORLD_SIZE,
+    )
+
+    # Runs whose whole training budget completes inside the first eval-cadence
+    # iteration (e.g. eval_interval=null with epochs=1) exit the main loop via
+    # the early "reached total_steps" break above the per-iteration checkpoint
+    # block, so save_train_state() is never reached and no weights persist.
+    # Save once here, unconditionally, so every completed run leaves a
+    # loadable final checkpoint regardless of eval_interval/checkpoint_every_eval.
+    if RANK == 0 and config.checkpoint_path is not None:
+        save_train_state(config, train_state)
+
     if progress_bar is not None:
         try:
             progress_bar.close()
@@ -1013,6 +1236,8 @@ def launch(hydra_config: DictConfig):
             _wandb.finish()
     except Exception:
         pass
+    if RANK == 0:
+        write_run_summary(config, train_state)
 
 
 if __name__ == "__main__":
