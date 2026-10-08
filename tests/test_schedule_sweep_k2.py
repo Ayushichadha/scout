@@ -70,8 +70,11 @@ def test_episode_rows_reaggregate_to_reported_micro():
     )
 
 
-def test_emitted_episode_matrix_reaggregates_to_reported_micro():
+def test_emitted_episode_matrix_reaggregates_to_reported_micro(require_archive_files):
     output_dir = ROOT / "experiments/schedule_sweep_k2"
+    require_archive_files(
+        output_dir / "per_episode_matrix.csv", output_dir / "analysis_summary.json"
+    )
     with (output_dir / "per_episode_matrix.csv").open(newline="") as handle:
         rows = list(csv.DictReader(handle))
     summary = json.loads((output_dir / "analysis_summary.json").read_text())

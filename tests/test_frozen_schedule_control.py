@@ -46,17 +46,25 @@ def test_threshold_switch_forces_only_predeclared_second_pass():
         threshold_for_pass(3, 8)
 
 
-def test_frozen_checkpoint_and_final_split_match_source_audit():
+def test_frozen_checkpoint_and_final_split_match_source_audit(require_archive_files):
+    require_archive_files(CHECKPOINT, CONFIG)
     assert sha256_file(CHECKPOINT) == EXPECTED_CHECKPOINT_SHA256
     config = load_config(CONFIG)
-    metadata, episodes = load_held_out_episodes(dataset_path_from_config(config))
+    dataset_path = dataset_path_from_config(config)
+    require_archive_files(dataset_path / "test/dataset.json")
+    metadata, episodes = load_held_out_episodes(dataset_path)
     split = deterministic_split(episodes, seed=20260819, calibration_fraction=0.20)
     assert split_provenance(split)["final_ordered_digest"] == EXPECTED_SPLIT_DIGEST
 
 
-def test_real_model_enforces_forced_schedule_without_state_change():
+def test_real_model_enforces_forced_schedule_without_state_change(
+    require_archive_files,
+):
+    require_archive_files(CHECKPOINT, CONFIG)
     config = load_config(CONFIG)
-    metadata, episodes = load_held_out_episodes(dataset_path_from_config(config))
+    dataset_path = dataset_path_from_config(config)
+    require_archive_files(dataset_path / "test/dataset.json")
+    metadata, episodes = load_held_out_episodes(dataset_path)
     model = build_model(config, metadata, batch_size=4, device="cpu")
     load_weights(model, CHECKPOINT, "cpu")
 

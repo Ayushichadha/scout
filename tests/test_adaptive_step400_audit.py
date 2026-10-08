@@ -12,6 +12,11 @@ from scripts.run_adaptive_matched_budget import (  # noqa: E402
     EpisodeTrace,
 )
 from scripts.run_adaptive_step400_audit import (  # noqa: E402
+    ADAPTIVE_CHECKPOINT,
+    P4_CHECKPOINT,
+    P6_CHECKPOINT,
+    P4_CONFIG,
+    P6_CONFIG,
     average_ranks,
     build_reference_audit,
     decision_rows,
@@ -55,7 +60,10 @@ def summary() -> BudgetSummary:
     )
 
 
-def test_step400_frozen_input_hashes_match():
+def test_step400_frozen_input_hashes_match(require_archive_files):
+    require_archive_files(
+        ADAPTIVE_CHECKPOINT, P4_CHECKPOINT, P6_CHECKPOINT, P4_CONFIG, P6_CONFIG
+    )
     observed = verify_frozen_files()
     assert set(observed) == {
         "adaptive_checkpoint",

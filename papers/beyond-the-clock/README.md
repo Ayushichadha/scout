@@ -31,6 +31,9 @@ python scripts/run_meta_agents_fixed_p.py smoke --fixed-refinement-steps 8
 ```
 
 The smoke check uses synthetic inputs and needs no dataset or checkpoint.
+Four historical replay tests report skips when their required archive files are
+absent; they run automatically when those files are restored at the recorded paths.
+Use `python -m pytest tests/ -q -rs` to display missing archive paths.
 The tests cover causal goal consumption, fixed compute, trigger gradients,
 deterministic seeding, matched-budget evaluation, and forced schedules.
 
