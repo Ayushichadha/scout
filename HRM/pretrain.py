@@ -320,16 +320,6 @@ def validate_training_config(
 
     # Check subgoal head configuration if present
     arch_extra = config.arch.__pydantic_extra__  # type: ignore
-    fixed_refinement_steps = arch_extra.get("fixed_refinement_steps")
-    if (
-        fixed_refinement_steps is not None
-        and config.max_steps is not None
-        and int(config.max_steps) % int(fixed_refinement_steps) != 0
-    ):
-        errors.append(
-            "max_steps must be a multiple of arch.fixed_refinement_steps so "
-            "fixed-compute runs end on complete episode boundaries"
-        )
     if "subgoal_head" in arch_extra:
         subgoal_cfg = arch_extra["subgoal_head"]
         hidden_size = arch_extra.get("hidden_size", 512)
@@ -372,6 +362,16 @@ def init_train_state(
     )
     if config.max_steps is not None:
         total_steps = min(total_steps, int(config.max_steps))
+
+    fixed_steps = (config.arch.__pydantic_extra__ or {}).get("fixed_refinement_steps")
+    if fixed_steps is not None:
+        fixed_steps = int(fixed_steps)
+        if fixed_steps <= 0 or total_steps <= 0 or total_steps % fixed_steps:
+            raise ValueError(
+                f"Effective total_steps={total_steps} must be a positive multiple "
+                f"of arch.fixed_refinement_steps={fixed_steps} so fixed-compute "
+                "runs end on complete episode boundaries"
+            )
 
     # Model
     model, optimizers, optimizer_lrs = create_model(
@@ -678,6 +678,33 @@ def evaluate(
                     reduced_metrics[set_name] = normalized
 
                 return reduced_metrics
+
+
+def evaluate_final_weights(
+    config: PretrainConfig,
+    train_state: TrainState,
+    eval_loader,
+    eval_metadata,
+    *,
+    rank: int,
+    world_size: int,
+) -> None:
+    """Evaluate current weights on every rank, replacing stale interval metrics."""
+    if not config.final_eval:
+        return
+    train_state.model.eval()
+    metrics = evaluate(
+        config,
+        train_state,
+        eval_loader,
+        eval_metadata,
+        rank=rank,
+        world_size=world_size,
+    )
+    if rank == 0:
+        train_state.latest_eval_metrics = (
+            normalize_eval_metrics(metrics) if metrics is not None else None
+        )
 
 
 def save_code_and_config(config: PretrainConfig):
@@ -1140,7 +1167,7 @@ def launch(hydra_config: DictConfig):
                 break
 
         # If we've reached the target number of steps, stop outer loop as well
-        # and skip the final evaluation to exit immediately.
+        # Final weights are evaluated after the training loop.
         if train_state.step >= train_state.total_steps:
             break
 
@@ -1176,19 +1203,15 @@ def launch(hydra_config: DictConfig):
         if train_state.step >= train_state.total_steps:
             break
 
-    # finalize
-    if config.final_eval and train_state.latest_eval_metrics is None:
-        train_state.model.eval()
-        final_metrics = evaluate(
-            config,
-            train_state,
-            eval_loader,
-            eval_metadata,
-            rank=RANK,
-            world_size=WORLD_SIZE,
-        )
-        if RANK == 0 and final_metrics is not None:
-            train_state.latest_eval_metrics = normalize_eval_metrics(final_metrics)
+    # Always reevaluate final weights, even after intermediate evaluations.
+    evaluate_final_weights(
+        config,
+        train_state,
+        eval_loader,
+        eval_metadata,
+        rank=RANK,
+        world_size=WORLD_SIZE,
+    )
 
     # Runs whose whole training budget completes inside the first eval-cadence
     # iteration (e.g. eval_interval=null with epochs=1) exit the main loop via

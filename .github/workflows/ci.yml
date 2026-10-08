@@ -36,6 +36,8 @@ jobs:
             einops \
             numpy \
             pyyaml \
+            tqdm \
+            coolname \
             pydantic \
             hydra-core \
             omegaconf \
