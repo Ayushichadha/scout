@@ -2,8 +2,8 @@
 
 **What this is.** One script that builds the data, trains a plain HRM-style model and evaluates it every N steps.
 It writes a CSV you can read like a learning curve. Goals and the re-planning controller are switched off
-(`subgoal_head=None`), so any result is about the base model only. Nothing here touches your repo: the scripts read
-a copy of `HRM/` and write only into their own folders.
+(`subgoal_head=None`), so any result is about the base model only. The scripts live in this repo under `stage0/`.
+They read `HRM/` and write only into the data and run folders you set.
 
 **What it logs** (one row per evaluation, `metrics.csv`), always next to the copy-input baseline on the same episodes:
 
@@ -21,7 +21,8 @@ a copy of `HRM/` and write only into their own folders.
 
 ## Files
 - `build_data.py`: builds the data with N augmentations (default 300) into a new folder, and writes `split.npz` with the same
-  deterministic calibration/final split logic as Stage A (Philox seed 20260819, 20% calibration) plus a fixed evaluation subset.
+  deterministic calibration/final split logic as Stage A (Philox seed 20260819, 20% calibration) plus a fixed evaluation subset
+  (`eval_idx`). On the final split, `train_eval.py` evaluates that subset.
 - `train_eval.py`: the driver (model, optimiser, loop, evaluation, CSV, checkpoint and `--resume`).
 - `train_eval.sh <preset>`: wrapper: builds the data if missing, then trains. Presets: `smoke`, `small`, `hrm`.
 
@@ -38,40 +39,39 @@ One "step" is one refinement pass over a batch (HRM's convention); each example 
 1. **Account.** kaggle.com, free. To use a GPU and the internet in a notebook, Kaggle asks you to verify a phone number.
    (I have not signed up for anything. This is for you to do, or to tell me to prepare.)
 2. **New notebook.** Settings: Accelerator = *GPU P100* (or *T4 x2*), Internet = *On*, Persistence = *Files only*.
-3. **Get the code and the raw data** (first cell):
+3. **Get the code and the raw data** (first cell). The Stage 0 scripts are already in this repo at `stage0/`. Clone this branch (`cursor/stage0-scripts-c699`). After the pull request is merged, clone `main` and skip the checkout.
    ```
    !git clone https://github.com/Ayushichadha/scout /kaggle/working/scout
-   !cd /kaggle/working/scout && git checkout cf814af
+   !cd /kaggle/working/scout && git checkout cursor/stage0-scripts-c699
    !git clone https://github.com/fchollet/ARC-AGI /kaggle/working/raw/ARC-AGI
    !cd /kaggle/working/raw/ARC-AGI && git checkout 3990304
    !git clone https://github.com/victorvikram/ConceptARC /kaggle/working/raw/ConceptARC
    !cd /kaggle/working/raw/ConceptARC && git checkout b22ef52
    !pip -q install einops coolname pydantic argdantic omegaconf hydra-core
    ```
-   (The commits are the ones used in Stage A. If a URL has moved, the `HRM/.gitmodules` file in the repo names the sources.
+   (The ARC-AGI and ConceptARC commits are the ones used in Stage A. If a URL has moved, the `HRM/.gitmodules` file in the repo names the sources.
    The repo's own `HRM/requirements.txt` lists everything; `wandb`, `adam-atan2` and `huggingface_hub` are not needed here.)
-4. **Add the Stage 0 scripts.** Easiest: upload `stage0_bundle.zip` (the four small files) as a Kaggle dataset or into the
-   notebook, then `!unzip` it to `/kaggle/working/stage0`. I can produce that zip; it is only about 20 KB.
-5. **Run** (second cell). Kaggle's P100 has no bf16, so use float32; `DTYPE=auto` already picks that on a P100.
+4. **Run** from the repo root (second cell). Kaggle's P100 has no bf16, so use float32; `DTYPE=auto` already picks that on a P100. `REPO` defaults to this repo's `HRM/`.
    ```
-   !cd /kaggle/working && REPO=/kaggle/working/scout/HRM RAW=/kaggle/working/raw \
+   !cd /kaggle/working/scout && RAW=/kaggle/working/raw \
       DATA=/kaggle/working/arc300 OUT=/kaggle/working/run_small DEVICE=cuda \
       bash stage0/train_eval.sh small
    ```
    The first run builds the data (about 2.2 GB, 10-20 minutes, about 6 GB RAM; Kaggle gives about 29 GB). It then trains.
-6. **Sessions end** (about 9-12 h at most; weekly GPU quota about 30 h). Re-run the same command with `--resume` appended:
-   `bash stage0/train_eval.sh small --resume` with the same `OUT=`. It continues from `ckpt.pt`. Save `run_small/metrics.csv`
+5. **Sessions end** (about 9-12 h at most; weekly GPU quota about 30 h). From the repo root, re-run the same command with `--resume` and the same `OUT=`:
+   `RAW=/kaggle/working/raw DATA=/kaggle/working/arc300 OUT=/kaggle/working/run_small DEVICE=cuda bash stage0/train_eval.sh small --resume`.
+   It continues from `ckpt.pt`, and `wall_s` keeps counting from the previous session. Save `run_small/metrics.csv`
    (the Output tab, or "Save Version") before the session closes.
-7. **Read the CSV.** Open `metrics.csv`; compare `eval_micro` with `copy_micro`, and look at `eval_changed` and `eval_exact`.
+6. **Read the CSV.** Open `metrics.csv`; compare `eval_micro` with `copy_micro`, and look at `eval_changed` and `eval_exact`.
    If the training loss (`train_lm_loss`) is not falling after a few thousand steps, stop and tell me; that points to a bug or a
    settings problem, not a lack of compute.
 
 ## Run it on a rented GPU (Vast.ai / RunPod / Lambda), about 20 minutes of your time
 Only after you have decided to spend money; I will not sign up or pay. A single RTX 4090 or A100 is enough for `small` and `hrm`.
 1. Rent one GPU with a PyTorch image (CUDA 12.x). Vast.ai and RunPod bill per second; set a small prepaid top-up as a hard cap.
-2. SSH in, then run the same clone/pip lines as above (paths of your choice), and:
+2. SSH in, then run the same clone/pip lines as above (paths of your choice). From the repo root:
    ```
-   REPO=~/scout/HRM RAW=~/raw DEVICE=cuda bash ~/stage0/train_eval.sh hrm
+   RAW=~/raw DEVICE=cuda bash stage0/train_eval.sh hrm
    ```
    Add `--compile` for a speed-up on A100/H100/4090 (not on P100/T4). On Ampere or newer GPUs `DTYPE=auto` picks bf16.
 3. When it finishes (or the curve has clearly plateaued), copy `metrics.csv` back and **destroy the instance** so it stops billing.
@@ -84,7 +84,7 @@ Only after you have decided to spend money; I will not sign up or pay. A single 
   rarely. In short runs most embeddings are untouched, which holds the scores down. If your budget is under about 10M example-passes,
   try `NUM_AUG=100` (a second built folder) before spending more; this is untested.
 - **Held-out episodes** are the 400 ARC-AGI-1 evaluation tasks in all their augmented views (123,294 episodes at 300 augmentations).
-  Training evaluates a fixed random subset of the final split (2,000 by default) so evaluation stays cheap. Use `--eval-n 0` for all of it.
+  On the final split, training evaluates `split.npz`'s `eval_idx` (2,000 episodes by default). A smaller `--eval-n` uses a prefix of that subset; a larger one keeps `eval_idx` and fills the rest from the final split. Use `--eval-n 0` for every episode in the split.
 - **Optimiser.** `adamw` by default (works anywhere). HRM used `adam-atan2`; add `--optim adam_atan2` after `pip install adam-atan2` on a GPU.
 - **Some tasks have fewer than 300 distinct augmentations** (the builder prints "augmentation not full"); that is the upstream builder's behaviour.
 - **Short runs will not beat copy-input.** A model first learns to copy the input, then slowly learns the changes. Watch `eval_changed` and the gap.

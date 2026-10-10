@@ -43,7 +43,8 @@ p.add_argument("--puzzle-wd", type=float, default=0.1)
 p.add_argument("--optim", default="adamw", choices=["adamw", "adam_atan2"],
                help="adamw works everywhere; adam_atan2 needs the adam-atan2 package (HRM's choice)")
 p.add_argument("--eval-every", type=int, default=200)
-p.add_argument("--eval-n", type=int, default=2000, help="episodes in the fixed evaluation subset")
+p.add_argument("--eval-n", type=int, default=2000,
+               help="episodes to evaluate (0 = the whole chosen split). On the final split, taken from split.npz eval_idx when that subset is present")
 p.add_argument("--eval-batch", type=int, default=128)
 p.add_argument("--eval-set", default="final", choices=["final", "calibration"])
 p.add_argument("--threads", type=int, default=0)
@@ -81,11 +82,32 @@ md = ds.metadata
 tin = np.load(data / "test/all__inputs.npy", mmap_mode="r"); tlab = np.load(data / "test/all__labels.npy", mmap_mode="r")
 tpid = np.load(data / "test/all__puzzle_identifiers.npy"); tpi = np.load(data / "test/all__puzzle_indices.npy")
 sp = np.load(data / "split.npz")
-pool = sp["final_idx"] if a.eval_set == "final" else np.flatnonzero(sp["is_calibration"])
-if a.eval_n and a.eval_n < len(pool):
-    ev = np.sort(np.random.default_rng(12345).choice(pool, a.eval_n, replace=False))   # fixed subset, same every run
-else:
-    ev = np.sort(pool)
+
+def choose_eval_indices(split, eval_set, eval_n):
+    # Final split: use the subset build_data.py stored as eval_idx. --eval-n 0 (or a count
+    # covering the split) is every episode. A smaller count is a prefix of that subset; a
+    # larger one keeps eval_idx and fills from the rest with the old seeded draw.
+    # Calibration, or a split with no eval_idx, keeps that seeded draw.
+    pool = np.asarray(split["final_idx"] if eval_set == "final" else np.flatnonzero(split["is_calibration"]))
+    saved = None
+    if eval_set == "final" and "eval_idx" in split.files and len(split["eval_idx"]):
+        saved = np.sort(np.asarray(split["eval_idx"]))
+    if saved is None:
+        if eval_n and eval_n < len(pool):
+            return np.sort(np.random.default_rng(12345).choice(pool, eval_n, replace=False)), "seeded draw"
+        return np.sort(pool), "full split"
+    if not eval_n or eval_n >= len(pool):
+        return np.sort(pool), "full split"
+    if eval_n <= len(saved):
+        return saved[:eval_n], "split.npz eval_idx" if eval_n == len(saved) else "split.npz eval_idx prefix"
+    rest = np.setdiff1d(np.sort(pool), saved)
+    need = eval_n - len(saved)
+    if need >= len(rest):
+        return np.sort(pool), "full split"
+    extra = np.random.default_rng(12345).choice(rest, need, replace=False)
+    return np.sort(np.concatenate([saved, np.asarray(extra)])), "split.npz eval_idx plus seeded fill"
+
+ev, ev_src = choose_eval_indices(sp, a.eval_set, a.eval_n)
 ev_in = np.asarray(tin[ev]).astype(np.int64); ev_lab = np.asarray(tlab[ev]).astype(np.int64)
 ev_pid = tpid[np.searchsorted(tpi, ev, side="right") - 1].astype(np.int64)
 ev_lab = np.where(ev_lab == 0, IGNORE_LABEL_ID, ev_lab)
@@ -103,7 +125,7 @@ def score(pred, inp, lab):
                 exact=float((corr.sum(1) == m["valid"].sum(1)).mean()),
                 n_valid=n["valid"], n_nonbg=n["nonbg"], n_changed=n["changed"])
 copy = score(ev_in, ev_in, ev_lab)
-print(f"eval subset: {len(ev)} episodes ({a.eval_set} split); copy-input micro {copy['micro']:.4f}, "
+print(f"eval subset: {len(ev)} episodes ({a.eval_set} split, {ev_src}); copy-input micro {copy['micro']:.4f}, "
       f"non-bg {copy['nonbg']:.4f}, changed {copy['changed']:.4f}, exact {copy['exact']:.4f}", flush=True)
 
 # ---------------- model ----------------
@@ -111,7 +133,7 @@ cfg = dict(batch_size=a.batch, seq_len=md.seq_len, vocab_size=md.vocab_size, num
            puzzle_emb_ndim=a.hidden, H_cycles=a.cycles, L_cycles=a.cycles, H_layers=a.layers, L_layers=a.layers,
            hidden_size=a.hidden, expansion=a.expansion, num_heads=a.heads, pos_encodings="rope",
            halt_max_steps=a.passes, halt_exploration_prob=0.0, fixed_refinement_steps=a.passes,
-           forward_dtype=dtype, subgoal_head=None, causal=False)
+           forward_dtype=dtype, subgoal_head=None)
 core = load_model_class("hrm.hrm_act_v1@HierarchicalReasoningModel_ACTV1")(cfg)
 model = load_model_class("losses@ACTLossHead")(core, loss_type="stablemax_cross_entropy",
                                                 feudal_loss_weight=0.0, intervention_weight=0.0)
@@ -156,11 +178,24 @@ def evaluate():
     return score(preds, ev_in, ev_lab) | dict(pred_eq_input=float(((preds == ev_in) & (ev_lab != IGNORE_LABEL_ID)).sum() / copy["n_valid"]))
 
 # ---------------- train ----------------
-ckpt = out / "ckpt.pt"; step = 0
+def last_csv_wall(path):
+    last = 0.0
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            try: last = float(row["wall_s"])
+            except (KeyError, TypeError, ValueError): continue
+    return last
+
+ckpt = out / "ckpt.pt"; step = 0; wall_offset = 0.0; resumed = False
 if a.resume and ckpt.exists():
     st = torch.load(ckpt, map_location=dev if dev == "cuda" else "cpu", weights_only=False)
     model.load_state_dict(st["model"]); [o.load_state_dict(s) for o, s in zip(opts, st["opts"])]; step = st["step"]
-    print(f"resumed from step {step}", flush=True)
+    if "wall_s" in st: wall_offset = float(st["wall_s"])
+    resumed = True
+if a.resume and (out / "metrics.csv").exists():
+    wall_offset = max(wall_offset, last_csv_wall(out / "metrics.csv"))
+if a.resume and (resumed or wall_offset):
+    print(f"resumed from step {step}, wall {wall_offset:.0f}s", flush=True)
 ds._iters = step
 (out / "config.json").write_text(json.dumps(dict(args=vars(a), dtype=dtype, device=dev, dense_params=n_dense,
                                                  emb_table=int(n_emb), copy_input=copy, eval_n=len(ev),
@@ -170,17 +205,18 @@ cols = ["step", "example_passes", "wall_s", "train_lm_loss", "eval_micro", "eval
 new = not (out / "metrics.csv").exists() or not a.resume
 f = open(out / "metrics.csv", "a" if (a.resume and not new) else "w", newline=""); w = csv.writer(f)
 if new: w.writerow(cols)
-model.train(); carry = None; t0 = time.time(); loss_acc, loss_n = 0.0, 0
+model.train(); carry = None; t0 = time.time() - wall_offset; loss_acc, loss_n = 0.0, 0
 it = iter(torch.utils.data.DataLoader(ds, batch_size=None, num_workers=0))
 
 def log_row():
     r = evaluate()
-    row = [step, step * a.batch, round(time.time() - t0, 1), round(loss_acc / max(loss_n, 1), 5), r["micro"], r["nonbg"],
+    elapsed = round(time.time() - t0, 1)
+    row = [step, step * a.batch, elapsed, round(loss_acc / max(loss_n, 1), 5), r["micro"], r["nonbg"],
            r["changed"], r["exact"], r["pred_eq_input"], copy["micro"], copy["nonbg"], copy["changed"], copy["exact"], len(ev)]
     w.writerow(row); f.flush()
     print(f"step {step:6d} | {row[2]:7.0f}s | loss {row[3]:.4f} | micro {r['micro']:.4f} (copy {copy['micro']:.4f}) | "
           f"nonbg {r['nonbg']:.4f} | changed {r['changed']:.4f} | exact {r['exact']:.4f}", flush=True)
-    torch.save(dict(model=model.state_dict(), opts=[o.state_dict() for o in opts], step=step), ckpt)
+    torch.save(dict(model=model.state_dict(), opts=[o.state_dict() for o in opts], step=step, wall_s=elapsed), ckpt)
 
 if step == 0: log_row()
 while step < a.steps:
