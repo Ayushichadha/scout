@@ -40,3 +40,13 @@ worker on a cached goal and permits one optional goal refresh. That bridge uses
 endpoint supervision without a directional auxiliary loss. The structured TRM
 pilot uses disjoint pointer graphs and checks development competence and revision
 headroom before scoring evaluation problems.
+
+The primary HRM diagnostic uses one example per calibration source and compares
+retaining the initial goal with one forced refresh at passes 2 through 7.
+Each trajectory ends after eight passes. Run it from the repository root:
+
+    python -m scripts.audit_revision_endpoints --development
+
+The local table in outputs/revision-development.csv records both exact-solve
+outcomes for each source and decision pass. Repeated passes share a problem
+and a persistence outcome. The calibration corpus comes from historical data.

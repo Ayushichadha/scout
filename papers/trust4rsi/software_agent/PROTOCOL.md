@@ -1,4 +1,6 @@
-# Software-agent revision study
+# Proposed software-agent transfer study
+
+The primary experiment tests goal persistence and revision in HRM. This protocol describes a possible transfer pilot.
 
 ## Research question
 

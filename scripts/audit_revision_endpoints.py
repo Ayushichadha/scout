@@ -1,6 +1,9 @@
 """Replay the original 64 diagnostic episodes with a single forced revision or none."""
 
+import argparse
 import csv
+
+from scripts.build_revision_split import build_manifest
 from pathlib import Path
 import time
 
@@ -11,6 +14,13 @@ from scripts.run_adaptive_matched_budget import _batch_episodes, _set_threshold
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--development",
+        action="store_true",
+        help="Replay the first stored example from each calibration source",
+    )
+    development = parser.parse_args().development
     torch.set_num_threads(2)
     start = time.monotonic()
     if control.sha256_file(control.CHECKPOINT) != control.EXPECTED_CHECKPOINT_SHA256:
@@ -23,16 +33,30 @@ def main():
     control.load_weights(model, control.CHECKPOINT, "cpu")
     model.eval()
     path = Path("analysis/counterfactual_persistence_v2_diagnostic/decision_states.csv")
-    with path.open() as file:
-        states = {
-            (row["episode_id"], int(row["pass_position"])): row
-            for row in csv.DictReader(file)
-        }
+    selected = episodes[:64]
+    sources = {}
+    if development:
+        manifest = build_manifest(control.dataset_path_from_config(config))
+        if len(manifest["rows"]) != len(episodes):
+            raise ValueError("Dataset row count mismatch")
+        selected = []
+        seen = set()
+        for episode, row in zip(episodes, manifest["rows"]):
+            if episode.set_name != row["set"]:
+                raise ValueError("Dataset order mismatch")
+            if row["split"] == "calibration" and row["source"] not in seen:
+                seen.add(row["source"])
+                sources[episode.episode_id] = row["source"]
+                selected.append(episode)
+    else:
+        with path.open() as file:
+            states = {
+                (row["episode_id"], int(row["pass_position"])): row
+                for row in csv.DictReader(file)
+            }
     records = []
     with torch.inference_mode():
-        for batch, valid in _batch_episodes(
-            episodes[:64], batch_size=4, metadata=metadata
-        ):
+        for batch, valid in _batch_episodes(selected, batch_size=4, metadata=metadata):
             labels = batch["labels"]
             for revision in (None, *range(2, 8)):
                 carry = model.model.initial_carry(batch)
@@ -50,18 +74,27 @@ def main():
                     persist = solved
                     continue
                 for i, episode in enumerate(valid):
-                    row = states[episode.episode_id, revision]
+                    delta = (
+                        None
+                        if development
+                        else states[episode.episode_id, revision]["advantage"]
+                    )
                     records.append(
                         dict(
                             episode=episode.episode_id,
                             puzzle_id=episode.puzzle_identifier,
                             step=revision,
-                            local_delta=row["advantage"],
+                            source=sources.get(episode.episode_id),
+                            local_delta=delta,
                             persist=int(persist[i]),
                             revise=int(solved[i]),
                         )
                     )
-    output = Path("outputs/revision-endpoints.csv")
+    output = Path(
+        "outputs/revision-development.csv"
+        if development
+        else "outputs/revision-endpoints.csv"
+    )
     output.parent.mkdir(exist_ok=True)
     with output.open("w") as file:
         writer = csv.DictWriter(file, fieldnames=list(records[0]))
