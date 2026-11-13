@@ -50,3 +50,9 @@ Each trajectory ends after eight passes. Run it from the repository root:
 The local table in outputs/revision-development.csv records both exact-solve
 outcomes for each source and decision pass. Repeated passes share a problem
 and a persistence outcome. The calibration corpus comes from historical data.
+
+Run the seed-0 training replay and four-example memorization control with
+`python -m scripts.check_hrm_memorization`. The step-400 checkpoint solved
+0/200 reconstructed training examples at eight passes. Fine-tuning the first
+batch for 400 further updates with fresh optimizer state increased supervised
+token accuracy from 72.47% to 96.72%, with 0/4 exact solves at both endpoints.
