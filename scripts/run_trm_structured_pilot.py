@@ -4,6 +4,7 @@ import argparse
 import csv
 import hashlib
 import itertools
+import math
 import json
 from pathlib import Path
 import time
@@ -45,12 +46,12 @@ def queries(graphs, ids):
     }, records
 
 
-def rollout(model, data, revision, feudal_weight):
+def rollout(model, data, revision, feudal_weight, inject=True):
     carry, commitment = model.initial(data), None
     auxiliaries = []
     for step in range(1, 5):
         carry, logits, _, auxiliary = model.transition(
-            carry, data, commitment, return_auxiliary=True
+            carry, data, commitment, inject=inject, return_auxiliary=True
         )
         if commitment is not None:
             auxiliaries.append(auxiliary)
@@ -61,13 +62,13 @@ def rollout(model, data, revision, feudal_weight):
 
 
 @torch.no_grad()
-def evaluate(model, data, records):
+def evaluate(model, data, records, inject=True):
     predictions = []
     for revision in [None, 2, 3]:
         correct = []
         for offset in range(0, len(records), 64):
             batch = {key: value[offset : offset + 64] for key, value in data.items()}
-            logits, _ = rollout(model, batch, revision, 0)
+            logits, _ = rollout(model, batch, revision, 0, inject=inject)
             predicted = logits[:, 0].argmax(-1)
             correct.extend((predicted == batch["labels"][:, 0]).tolist())
         predictions.append(correct)
@@ -82,12 +83,25 @@ def main():
     parser.add_argument("--seed", type=int, default=23)
     parser.add_argument("--feudal-weight", type=float, default=0.05)
     parser.add_argument("--overfit-check", action="store_true")
+    parser.add_argument("--disable-injection", action="store_true")
+    parser.add_argument("--development-only", action="store_true")
+    parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument(
         "--output", type=Path, default=Path("outputs/trm-pointer-pilot")
     )
     args = parser.parse_args()
-    if args.steps < 1 or args.feudal_weight < 0:
-        parser.error("steps must be positive and feudal weight nonnegative")
+    if (
+        args.steps < 1
+        or args.feudal_weight < 0
+        or not math.isfinite(args.feudal_weight)
+        or args.lr <= 0
+        or not math.isfinite(args.lr)
+    ):
+        parser.error(
+            "steps/lr must be positive and finite; feudal weight finite and nonnegative"
+        )
+    if args.disable_injection and args.feudal_weight:
+        parser.error("disabled injection requires --feudal-weight 0")
     torch.set_num_threads(2)
     torch.manual_seed(args.seed)
     reference, scout = load_models(args.source.resolve())
@@ -125,7 +139,7 @@ def main():
             len(train["inputs"]), generator=torch.Generator().manual_seed(7)
         )[:8]
         train = {key: value[ids] for key, value in train.items()}
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     generator = torch.Generator().manual_seed(args.seed + 1)
     start = time.perf_counter()
     loss_history = []
@@ -134,7 +148,13 @@ def main():
         batch = {key: value[indices] for key, value in train.items()}
         # Balance fixed schedules during training, independent of task labels.
         revision = [None, 2, 3][step % 3]
-        logits, auxiliary = rollout(model, batch, revision, args.feudal_weight)
+        logits, auxiliary = rollout(
+            model,
+            batch,
+            revision,
+            args.feudal_weight,
+            inject=not args.disable_injection,
+        )
         loss = (
             F.cross_entropy(logits.reshape(-1, 10), batch["labels"].reshape(-1))
             + auxiliary
@@ -147,7 +167,9 @@ def main():
             loss_history.append(dict(step=step, loss=float(loss.detach())))
     model.eval()
     if args.overfit_check:
-        outcomes = evaluate(model, train, list(range(8)))
+        outcomes = evaluate(
+            model, train, list(range(8)), inject=not args.disable_injection
+        )
         report = dict(
             scope="eight-example training-only overfit diagnostic",
             reference_commit=PIN,
@@ -163,7 +185,25 @@ def main():
         print(json.dumps(report, indent=2))
         return
     dev_data, dev_records = datasets["development"]
-    dev = evaluate(model, dev_data, dev_records)
+    dev = evaluate(model, dev_data, dev_records, inject=not args.disable_injection)
+    diagnostic_ids = torch.randperm(
+        len(train["inputs"]), generator=torch.Generator().manual_seed(7)
+    )[:512]
+    diagnostic_data = {key: value[diagnostic_ids] for key, value in train.items()}
+    diagnostic_records = [datasets["train"][1][i] for i in diagnostic_ids.tolist()]
+    train_outcomes = evaluate(
+        model, diagnostic_data, diagnostic_records, inject=not args.disable_injection
+    )
+
+    def depth_rates(outcomes, records):
+        return {
+            str(depth): outcomes[torch.tensor([r[2] == depth for r in records])]
+            .float()
+            .mean(0)
+            .tolist()
+            for depth in range(1, 4)
+        }
+
     best = int(dev.float().mean(0).argmax())
     opportunity = int((dev.any(1) & ~dev[:, best]).sum())
     # Predeclared pilot gate: above chance competence and at least 20 rescues.
@@ -178,6 +218,31 @@ def main():
         graph_ids={k: v.tolist() for k, v in parts.items()},
         loss_history=loss_history,
         development_rates=dev.float().mean(0).tolist(),
+        development_by_depth=depth_rates(dev, dev_records),
+        symbolic_development_baselines={
+            str(depth): {
+                "return_start": sum(
+                    int(dev_data["labels"][i, 0]) == r[1]
+                    for i, r in enumerate(dev_records)
+                    if r[2] == depth
+                )
+                / sum(r[2] == depth for r in dev_records),
+                "one_hop": sum(
+                    int(dev_data["labels"][i, 0]) == int(graphs[r[0], r[1]])
+                    for i, r in enumerate(dev_records)
+                    if r[2] == depth
+                )
+                / sum(r[2] == depth for r in dev_records),
+                "uniform_six_node_chance": 1 / 6,
+            }
+            for depth in range(1, 4)
+        },
+        train_diagnostic_rates=train_outcomes.float().mean(0).tolist(),
+        train_diagnostic_by_depth=depth_rates(train_outcomes, diagnostic_records),
+        train_diagnostic_indices=diagnostic_ids.tolist(),
+        learning_rate=args.lr,
+        goal_injection=not args.disable_injection,
+        development_only=args.development_only,
         schedules=["persist", "revise_after_2", "revise_after_3"],
         development_selected_schedule=best,
         development_oracle_rescues=opportunity,
@@ -198,9 +263,9 @@ def main():
                 revise3=int(dev[i, 2]),
             )
         )
-    if gate:
+    if gate and not args.development_only:
         data, records = datasets["evaluation"]
-        outcomes = evaluate(model, data, records)
+        outcomes = evaluate(model, data, records, inject=not args.disable_injection)
         report["evaluation_rates"] = outcomes.float().mean(0).tolist()
         report["evaluation_oracle_rescues"] = int(
             (outcomes.any(1) & ~outcomes[:, best]).sum()
