@@ -153,6 +153,14 @@ def run(output, seed, steps):
             )
             refresh_models[k] = beta
             future = np.where(np.einsum("ni,i->n", x, beta) > 0, rewards[:, j], future)
+        time_future = rewards[:, -1].copy()
+        time_refresh = {}
+        for j in reversed(range(len(REFRESH))):
+            k = REFRESH[j]
+            time_refresh[k] = float((rewards[:, j] - time_future).mean())
+            if time_refresh[k] > 0:
+                time_future = rewards[:, j].copy()
+        time_choice = next((k for k in REFRESH if time_refresh[k] > 0), None)
         val_rewards = [
             score(vr, choices(model, val, k)).mean() for k in (*REFRESH, None)
         ]
@@ -162,6 +170,7 @@ def run(output, seed, steps):
             "persist": None,
             "validation_refresh_clock": best,
             "state_refresh": "state",
+            "time_refresh": time_choice,
         }
         trace_path = output / "trace.jsonl"
         outcomes = {}
@@ -250,6 +259,17 @@ def run(output, seed, steps):
                 assert len(row["goal_refresh"]) <= 1
                 verified += 1
         outcomes["reactive"] = score(te, reactive(test, streak)).tolist()
+        persist_outcome = score(te, choices(model, test)).astype(bool)
+        paired_by_pass = {}
+        for k in REFRESH:
+            revise_outcome = score(te, choices(model, test, k)).astype(bool)
+            paired_by_pass[k] = dict(
+                workflows=len(persist_outcome),
+                only_refresh=int((revise_outcome & ~persist_outcome).sum()),
+                only_persist=int((persist_outcome & ~revise_outcome).sum()),
+                both=int((persist_outcome & revise_outcome).sum()),
+                neither=int((~persist_outcome & ~revise_outcome).sum()),
+            )
         report = {
             "scope": "latent goal injection in learned SQLite worker; synthetic faults; no directional auxiliary objective",
             "seed": seed,
@@ -258,6 +278,9 @@ def run(output, seed, steps):
             "verified_trace_rows": verified,
             "task_target": "switch-now endpoint success minus never-switch success",
             "goal_refresh_clock": best,
+            "time_refresh_choice": time_choice,
+            "time_refresh_advantages": time_refresh,
+            "paired_outcomes_by_pass": paired_by_pass,
             "reactive_streak": streak,
             "refresh_supervisor_penalty": 10,
             "refresh_supervisor_coefficients": {
@@ -270,7 +293,7 @@ def run(output, seed, steps):
             "completion": {k: float(np.mean(v)) for k, v in outcomes.items()},
             "paired": {},
         }
-        for name in ["persist", "validation_refresh_clock", "reactive"]:
+        for name in ["persist", "validation_refresh_clock", "time_refresh", "reactive"]:
             diff = np.array(outcomes["state_refresh"]) - outcomes[name]
             draws = diff[rng.integers(len(diff), size=(10000, len(diff)))].mean(1)
             report["paired"][name] = {

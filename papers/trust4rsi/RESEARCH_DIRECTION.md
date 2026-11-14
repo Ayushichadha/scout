@@ -130,3 +130,22 @@ For the existing SQLite bridge, the next missing measurement is the terminal
 persist/refresh disagreement by decision step, followed by a matched learned
 time-only baseline. This uses the implemented software task and tests whether
 the current fixed-clock comparison hides a temporal learning advantage.
+
+## November 20 submission priority
+
+Following the author's November 14 decision, the existing SQLite goal-refresh
+study is the main experiment. HRM/ARC supplies the motivating diagnostic.
+Prioritize matched learned time-only and state-aware decisions, endpoint branch
+outcomes, fresh-workflow replication, and manuscript preparation.
+
+The SQLite runner now includes a train-fitted time-only optimal-stopping policy
+using the same paired outcomes and backwards decision order as the state model.
+At each time its constant predictor is the mean advantage, equivalent to fitting
+the unpenalized intercept in the state model. Full trajectory evaluation includes
+this policy, and reports persist/refresh outcomes by pass.
+
+The first fresh seed (2026111401, 500 evaluation workflows) scored 80.2% for
+both learned policies and 80.4% for reactive control. State control rescued 17
+and lost 4 workflows against persistence, but had identical endpoint outcomes
+to time-only control. This is one development result. Goal revision can change
+task completion in this setting; added state has not demonstrated extra value.
