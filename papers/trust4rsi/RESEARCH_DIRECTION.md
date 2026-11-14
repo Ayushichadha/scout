@@ -52,3 +52,81 @@ round. Report exact rescues and losses alongside intermediate scores.
 Commit code, reproduction commands, and concise milestone findings to saint.
 Keep raw traces, weights, and detailed tables local. Existing experiments and
 proposed experiments must remain distinguishable.
+
+## Methods informed by the four reviewer references
+
+This section records the agreed research direction developed in the discussion.
+The experimental choices below are our proposed adaptations of the cited work.
+Implementation and empirical validation remain pending where explicitly stated.
+
+### Decision value
+
+For a frozen worker, define the value of refreshing at state s and pass t as
+the difference in expected terminal success between refresh and persist, under
+the same remaining budget and subsequent policy. Both branches must start from
+the same complete state. Repeated stochastic continuations estimate expectations;
+one branch pair provides a noisy outcome sample.
+
+Russell and Wefald's metareasoning framing motivates evaluating computation by
+its downstream decision utility. Our primary comparison uses matched budgets.
+Report actual worker computation and controller overhead separately. A secondary
+cost-sensitive objective may subtract a preregistered cost coefficient from
+success, with coefficient selection confined to development data.
+[Principles of Metareasoning](https://doi.org/10.1016/0004-3702(91)90015-C).
+
+Hay et al. formulate computation selection through expected improvements in
+decision quality. We use that framing to motivate terminal branch evaluation
+and an explicit continuation policy. A single-pass loss difference is a secondary
+measurement. Their theoretical results concern their selection setting; applying
+this framing to learned goal refresh requires empirical validation.
+[Selecting Computations](https://arxiv.org/abs/1207.5879).
+
+### Comparisons required by the research question
+
+Honda et al. show that replanning strategy effectiveness depends on environment
+and planner configuration. Our adaptation compares always-persist, a
+validation-selected fixed revision schedule, a validation-selected reactive rule,
+and learned revision. HRM reactive features must use observable prediction or
+state change without target labels. SQLite rules may use observed failure
+streaks. Subgroup reporting should expose gains and losses across task conditions.
+[When to Replan?](https://arxiv.org/abs/2304.12046).
+
+Xu et al. freeze the base VLA and learn sequential continue/replan decisions from
+trajectory outcomes, including replanning efficiency in the reward. Their
+Bernoulli continuation formulation motivates a sequential binary supervisor
+and endpoint-based training. First fit matched time-only and time-plus-state
+supervisors to the same paired branch data. A subsequent trajectory-trained
+Bernoulli baseline is a proposed adaptation. Claiming a BCP reproduction requires
+matching and verifying its actual training algorithm and reward.
+[Continue or Replan?](https://arxiv.org/abs/2608.03483).
+
+Match action availability, remaining budget, fitting data, model capacity, and
+tuning effort across the learned supervisors. Report within-pass comparisons,
+then evaluate frozen policies from episode start on untouched source problems.
+Use source-level paired intervals and separate rescue and loss counts.
+
+### Application to the implemented systems
+
+In HRM, persist retains the latent goal and refresh recomputes it from the current
+reasoning state. In the SQLite bridge, persist retains the cached manager goal
+used by the service-selection worker and refresh recomputes that goal from
+observations. SQLite's endpoint is successful record transfer under its call
+budget. Its synthetic faults and small learned worker bound the transfer claim.
+A general coding agent would introduce an explicit textual plan intervention.
+
+The primary contribution under investigation is the incremental value of state
+for selecting beneficial revisions beyond timing and reactive behavior.
+Adaptive timing and frozen-worker supervision already have direct precedents.
+
+### Evidence status and next decision
+
+The broader HRM replay found zero exact solves on 80 calibration-source examples.
+The 1,600-update repeated-batch run has completed at 96.72% token accuracy and
+0/4 exact solves, matching the 400-update endpoint. Further training-budget
+increases need an explanation for this plateau. Saved weights and predictions
+now support inspection without repeating training.
+
+For the existing SQLite bridge, the next missing measurement is the terminal
+persist/refresh disagreement by decision step, followed by a matched learned
+time-only baseline. This uses the implemented software task and tests whether
+the current fixed-clock comparison hides a temporal learning advantage.
