@@ -260,9 +260,11 @@ def run(output, seed, steps):
                 verified += 1
         outcomes["reactive"] = score(te, reactive(test, streak)).tolist()
         persist_outcome = score(te, choices(model, test)).astype(bool)
+        oracle_outcome = persist_outcome.copy()
         paired_by_pass = {}
         for k in REFRESH:
             revise_outcome = score(te, choices(model, test, k)).astype(bool)
+            oracle_outcome |= revise_outcome
             paired_by_pass[k] = dict(
                 workflows=len(persist_outcome),
                 only_refresh=int((revise_outcome & ~persist_outcome).sum()),
@@ -273,6 +275,15 @@ def run(output, seed, steps):
         report = {
             "scope": "latent goal injection in learned SQLite worker; synthetic faults; no directional auxiliary objective",
             "seed": seed,
+            "hindsight_oracle": {
+                "completion": float(oracle_outcome.mean()),
+                "additional_solves_over_time": int(
+                    (
+                        oracle_outcome & ~np.array(outcomes["time_refresh"], dtype=bool)
+                    ).sum()
+                ),
+                "interpretation": "Per-workflow best fixed refresh time or persistence, using evaluation outcomes",
+            },
             "steps": steps,
             "sizes": [500, 200, 500],
             "verified_trace_rows": verified,

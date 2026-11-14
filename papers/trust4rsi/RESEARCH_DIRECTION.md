@@ -149,3 +149,17 @@ both learned policies and 80.4% for reactive control. State control rescued 17
 and lost 4 workflows against persistence, but had identical endpoint outcomes
 to time-only control. This is one development result. Goal revision can change
 task completion in this setting; added state has not demonstrated extra value.
+
+## Three-seed software comparison
+
+Seeds 2026111401–2026111403 each used 500 evaluation workflows. State-aware
+completion was 80.2%, 83.2%, and 84.4%; learned time-only was 80.2%, 83.4%,
+and 84.4%. State control rescued zero and lost one relative to time-only across
+these runs. Each run verified 2,000 policy traces. Reactive service switching
+scored 80.4%, 85.2%, and 86.0%, using a different action interface.
+
+The per-workflow hindsight best refresh time or persistence reached 83.0%,
+86.0%, and 85.4%, respectively. It recovered 14, 13, and 5 additional workflows
+over learned timing. This establishes opportunity within the tested action set.
+It does not establish that the available pre-decision features can identify it.
+The controller specification is in CONTROLLER_DESIGN.md.
