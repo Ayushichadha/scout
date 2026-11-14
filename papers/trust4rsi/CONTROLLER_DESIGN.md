@@ -68,3 +68,23 @@ fixed, reactive, and learned replanning comparisons. Xu et al. motivate
 trajectory-outcome training while freezing the worker. Our ridge supervisor
 is a proposed adaptation of these principles, not a reproduction of BCP.
 See RESEARCH_DIRECTION.md for references and experiment status.
+
+## Architecture assessment from the current evidence
+
+The worker can respond directly to current observations while retaining an old
+goal. Consequently persistence of a goal is compatible with changing tool
+actions. The goal need not be the worker's sole source of adaptation. This
+architecture tests goal refresh only insofar as the learned worker uses that
+goal; a nonzero logit effect alone does not establish useful task structure.
+
+A frozen-worker gate-removal intervention on seeds 2026111401–2026111403 scored
+80.8%, 82.8%, and 84.0% versus 77.6%, 82.6%, and 84.2% with the initial goal
+retained. It rescued/lost 37/21, 40/39, and 4/5 workflows, respectively.
+Removing a trained input changes its distribution, so these numbers measure
+sensitivity to the goal channel. A separately trained observation-only worker
+is still required before claiming that goals help or hurt learning.
+
+The next architectural comparison should train goal-conditioned and
+observation-only workers on the same endpoint supervision, partitions, and
+training budget. Evaluate competence and revision headroom separately. Keep
+the existing goal-refresh action definition when evaluating the controller.

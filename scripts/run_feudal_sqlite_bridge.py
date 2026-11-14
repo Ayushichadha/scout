@@ -66,13 +66,14 @@ def refresh_features(model, data, k, old_goal):
 
 
 @torch.no_grad()
-def choices(model, data, refresh=None):
+def choices(model, data, refresh=None, disable_goal=False):
     goal, gate = model.propose(observation(data, 2))
     selected = np.full(len(data[1]), HORIZON)
     for k in range(2, 11):
         if refresh is not None and k == refresh:
             goal, gate = model.propose(observation(data, k))
-        scores = model(observation(data, k), goal, gate)
+        active_gate = torch.zeros_like(gate) if disable_goal else gate
+        scores = model(observation(data, k), goal, active_gate)
         selected[(selected == HORIZON) & (scores.numpy() > 0)] = k
     return selected
 
@@ -260,6 +261,15 @@ def run(output, seed, steps):
                 verified += 1
         outcomes["reactive"] = score(te, reactive(test, streak)).tolist()
         persist_outcome = score(te, choices(model, test)).astype(bool)
+        no_goal_outcome = score(te, choices(model, test, disable_goal=True)).astype(
+            bool
+        )
+        worker_gate_ablation = dict(
+            completion=float(no_goal_outcome.mean()),
+            rescued_vs_persist=int((no_goal_outcome & ~persist_outcome).sum()),
+            lost_vs_persist=int((persist_outcome & ~no_goal_outcome).sum()),
+            interpretation="Frozen-worker gate removal; distribution shift, not a separately trained baseline",
+        )
         oracle_outcome = persist_outcome.copy()
         paired_by_pass = {}
         for k in REFRESH:
@@ -275,6 +285,7 @@ def run(output, seed, steps):
         report = {
             "scope": "latent goal injection in learned SQLite worker; synthetic faults; no directional auxiliary objective",
             "seed": seed,
+            "frozen_worker_goal_ablation": worker_gate_ablation,
             "hindsight_oracle": {
                 "completion": float(oracle_outcome.mean()),
                 "additional_solves_over_time": int(
