@@ -86,6 +86,7 @@ def main():
         epochs_per_iter=1,
         global_batch_size=config.global_batch_size,
     )
+    config.epochs = max(config.epochs, args.steps)
     config.max_steps = args.steps
     state = init_train_state(config, metadata, 1)
     assert control.sha256_file(control.CHECKPOINT) == control.EXPECTED_CHECKPOINT_SHA256
