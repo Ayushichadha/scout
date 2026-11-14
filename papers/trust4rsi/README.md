@@ -56,3 +56,10 @@ Run the seed-0 training replay and four-example memorization control with
 0/200 reconstructed training examples at eight passes. Fine-tuning the first
 batch for 400 further updates with fresh optimizer state increased supervised
 token accuracy from 72.47% to 96.72%, with 0/4 exact solves at both endpoints.
+
+The four-example error inspection found 13 color substitutions and no boundary
+errors after the 400-update control. All four examples share stored puzzle
+identifier 9872. Use `--steps 1600` for the bounded extended competence run.
+The runner saves final weights, decoded predictions, and its configuration under
+outputs/. This measures fitting capacity on one batch. It does not measure
+development generalization.
