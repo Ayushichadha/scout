@@ -27,3 +27,12 @@ paper_exports/
 
 # Local session context, not project documentation
 CLAUDE.md
+
+# Local Trust4RSI experiment reports and planning
+analysis/PAPER2_LAB_PLAN.md
+analysis/grouped_clock_seed0.json
+analysis/grouped_supervisors_seed0.json
+analysis/reference_trm_check.json
+analysis/tool_revision_replications.json
+papers/trust4rsi/EXPERIMENT_STATUS.md
+papers/trust4rsi/*.pdf

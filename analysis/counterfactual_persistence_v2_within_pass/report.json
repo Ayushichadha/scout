@@ -1,0 +1,987 @@
+{
+  "held_out_advantage_prediction_comparison": {
+    "pass_only": {
+      "mse": 2.765848993840043e-05,
+      "pearson": 0.625051529999296,
+      "r2": 0.29212266257474817,
+      "spearman": 0.6147309517378132
+    },
+    "pass_plus_residual_critic": {
+      "mse": 2.4960565024444734e-05,
+      "pearson": 0.6661159390539285,
+      "r2": 0.36117198193085254,
+      "spearman": 0.6867783155464653
+    },
+    "previous_global_two_signal_critic": {
+      "mse": 2.31943301345225e-05,
+      "pearson": 0.6926854888822952,
+      "r2": 0.4063761002298011,
+      "spearman": 0.7287053725116949
+    }
+  },
+  "held_out_persist_state_summary": {
+    "advantage": {
+      "mean": -0.008830923660128725,
+      "median": -0.0073490142822265625,
+      "std": 0.005627100152018669
+    },
+    "combined_prediction": {
+      "mean": -0.006837926410069621,
+      "median": -0.006707324467909833,
+      "std": 0.0027520544304824135
+    },
+    "disagreement_residual": {
+      "mean": 0.03604925663123201,
+      "median": 0.05356880161497324,
+      "std": 0.0477239956170485
+    },
+    "goal_disagreement": {
+      "mean": 0.731904454091016,
+      "median": 0.7826247811317444,
+      "std": 0.19339645539303182
+    },
+    "progress": {
+      "mean": 0.11401703004159179,
+      "median": 0.1136583499610424,
+      "std": 0.024377638629388822
+    },
+    "progress_residual": {
+      "mean": 0.006025266374637877,
+      "median": 0.007069007307291028,
+      "std": 0.01834111746663225
+    },
+    "residual_critic_prediction": {
+      "mean": -0.00012354753162784903,
+      "median": -0.00014406850095838308,
+      "std": 0.0017126256049325502
+    },
+    "states": 102
+  },
+  "held_out_positive_replan_states": [
+    {
+      "advantage": 0.0005016326904296875,
+      "advantage_residual": 0.0006027460098266601,
+      "combined_prediction": 0.0012497742660343646,
+      "critic_prediction": 0.0008536027744412422,
+      "disagreement_residual": -0.010928825537363684,
+      "effective_advantage": -0.009146397225558758,
+      "episode_id": "all:00000001",
+      "goal_disagreement": 0.1681116819381714,
+      "goal_similarity": 0.8318883180618286,
+      "l_persist": 2.1901674270629883,
+      "l_replan": 2.1896657943725586,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.03968006372451782,
+      "progress_residual": -0.012422295411427815,
+      "residual_critic_prediction": 0.0013508875854313374,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.00020599365234375,
+      "advantage_residual": 0.00030710697174072263,
+      "combined_prediction": 0.0017298845574259757,
+      "critic_prediction": 0.0011168010532855988,
+      "disagreement_residual": -0.007894114653269446,
+      "effective_advantage": -0.008883198946714401,
+      "episode_id": "all:00000002",
+      "goal_disagreement": 0.17114639282226562,
+      "goal_similarity": 0.8288536071777344,
+      "l_persist": 2.276470899581909,
+      "l_replan": 2.2762649059295654,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.035933807492256165,
+      "progress_residual": -0.016168551643689473,
+      "residual_critic_prediction": 0.0018309978768229485,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.0012121200561523438,
+      "advantage_residual": 0.0013132333755493165,
+      "combined_prediction": 0.0012661967426538467,
+      "critic_prediction": 0.0008497312664985657,
+      "disagreement_residual": -0.010076121489206946,
+      "effective_advantage": -0.009150268733501435,
+      "episode_id": "all:00000004",
+      "goal_disagreement": 0.16896438598632812,
+      "goal_similarity": 0.8310356140136719,
+      "l_persist": 2.235952615737915,
+      "l_replan": 2.2347404956817627,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.03967209905385971,
+      "progress_residual": -0.012430260082085927,
+      "residual_critic_prediction": 0.0013673100620508194,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.0017690658569335938,
+      "advantage_residual": 0.0018701791763305665,
+      "combined_prediction": 0.00038389782421290877,
+      "critic_prediction": 0.00048351241275668144,
+      "disagreement_residual": -0.023082451025644934,
+      "effective_advantage": -0.009516487587243319,
+      "episode_id": "all:00000012",
+      "goal_disagreement": 0.15595805644989014,
+      "goal_similarity": 0.8440419435501099,
+      "l_persist": 1.4402058124542236,
+      "l_replan": 1.43843674659729,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.04551338776946068,
+      "progress_residual": -0.0065889713664849595,
+      "residual_critic_prediction": 0.0004850111436098814,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.001978754997253418,
+      "advantage_residual": 0.0020798683166503907,
+      "combined_prediction": 0.0012904101982712745,
+      "critic_prediction": 0.0011694137938320637,
+      "disagreement_residual": -0.02769984404246012,
+      "effective_advantage": -0.008830586206167937,
+      "episode_id": "all:00000015",
+      "goal_disagreement": 0.15134066343307495,
+      "goal_similarity": 0.848659336566925,
+      "l_persist": 1.4289886951446533,
+      "l_replan": 1.4270099401474,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.036600664258003235,
+      "progress_residual": -0.015501694877942403,
+      "residual_critic_prediction": 0.0013915235176682472,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.002050638198852539,
+      "advantage_residual": 0.002151751518249512,
+      "combined_prediction": 0.0010873667430132627,
+      "critic_prediction": 0.0009750393219292164,
+      "disagreement_residual": -0.024385527769724524,
+      "effective_advantage": -0.009024960678070784,
+      "episode_id": "all:00000020",
+      "goal_disagreement": 0.15465497970581055,
+      "goal_similarity": 0.8453450202941895,
+      "l_persist": 1.4960520267486572,
+      "l_replan": 1.4940013885498047,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.03898930922150612,
+      "progress_residual": -0.013113049914439519,
+      "residual_critic_prediction": 0.0011884800624102354,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.001775979995727539,
+      "advantage_residual": 0.0018770933151245118,
+      "combined_prediction": -0.0003605744335800409,
+      "critic_prediction": 0.0005130846984684467,
+      "disagreement_residual": -0.05861993233362833,
+      "effective_advantage": -0.009486915301531553,
+      "episode_id": "all:00000032",
+      "goal_disagreement": 0.12042057514190674,
+      "goal_similarity": 0.8795794248580933,
+      "l_persist": 2.063615322113037,
+      "l_replan": 2.0618393421173096,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.04762870818376541,
+      "progress_residual": -0.004473650952180226,
+      "residual_critic_prediction": -0.0002594611141830683,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.001071929931640625,
+      "advantage_residual": 0.0011730432510375977,
+      "combined_prediction": -0.000375534500926733,
+      "critic_prediction": -0.001082786824554205,
+      "disagreement_residual": 0.046144886811574304,
+      "effective_advantage": -0.011082786824554205,
+      "episode_id": "all:00000046",
+      "goal_disagreement": 0.22518539428710938,
+      "goal_similarity": 0.7748146057128906,
+      "l_persist": 2.118300676345825,
+      "l_replan": 2.1172287464141846,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.06136248633265495,
+      "progress_residual": 0.009260127196709315,
+      "residual_critic_prediction": -0.00027442118152976036,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.00293123722076416,
+      "advantage_residual": 0.003032350540161133,
+      "combined_prediction": 0.00018839994445443153,
+      "critic_prediction": -0.0006965845823287964,
+      "disagreement_residual": 0.04270224173863729,
+      "effective_advantage": -0.010696584582328797,
+      "episode_id": "all:00000056",
+      "goal_disagreement": 0.22174274921417236,
+      "goal_similarity": 0.7782572507858276,
+      "l_persist": 1.9803354740142822,
+      "l_replan": 1.977404236793518,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.056493718177080154,
+      "progress_residual": 0.004391359041134517,
+      "residual_critic_prediction": 0.0002895132638514042,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.0041561126708984375,
+      "advantage_residual": 0.00425722599029541,
+      "combined_prediction": 0.00019945940002799034,
+      "critic_prediction": -0.0006233979947865009,
+      "disagreement_residual": 0.03858642180760702,
+      "effective_advantage": -0.010623397994786501,
+      "episode_id": "all:00000057",
+      "goal_disagreement": 0.2176269292831421,
+      "goal_similarity": 0.7823730707168579,
+      "l_persist": 1.9829607009887695,
+      "l_replan": 1.978804588317871,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.05582643672823906,
+      "progress_residual": 0.003724077592293422,
+      "residual_critic_prediction": 0.000300572719424963,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.001264333724975586,
+      "advantage_residual": 0.0013654470443725587,
+      "combined_prediction": 0.0004453972447663546,
+      "critic_prediction": -0.00037187570706009865,
+      "disagreement_residual": 0.032157345612843835,
+      "effective_advantage": -0.010371875707060099,
+      "episode_id": "all:00000059",
+      "goal_disagreement": 0.2111978530883789,
+      "goal_similarity": 0.7888021469116211,
+      "l_persist": 2.516814708709717,
+      "l_replan": 2.515550374984741,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.05295635014772415,
+      "progress_residual": 0.000853991011778514,
+      "residual_critic_prediction": 0.0005465105641633272,
+      "split": "held_out"
+    },
+    {
+      "advantage": 0.0025839805603027344,
+      "advantage_residual": 0.002685093879699707,
+      "combined_prediction": -0.0005909801460802555,
+      "critic_prediction": -0.0011547403410077095,
+      "disagreement_residual": 0.042709692319234216,
+      "effective_advantage": -0.01115474034100771,
+      "episode_id": "all:00000062",
+      "goal_disagreement": 0.2217501997947693,
+      "goal_similarity": 0.7782498002052307,
+      "l_persist": 2.0864310264587402,
+      "l_replan": 2.0838470458984375,
+      "oracle_preference": "REPLAN",
+      "pass_only_prediction": -0.00010111331939697266,
+      "pass_position": 2,
+      "progress": 0.06257467716932297,
+      "progress_residual": 0.01047231803337733,
+      "residual_critic_prediction": -0.0004898668266832829,
+      "split": "held_out"
+    }
+  ],
+  "held_out_replan_classification": {
+    "held_out_negative_states": 102,
+    "held_out_positive_states": 12,
+    "pass_only": {
+      "accuracy": 0.8947368421052632,
+      "auroc": 0.9656862745098039,
+      "balanced_accuracy": 0.5,
+      "replan_precision": 0.0,
+      "replan_recall": 0.0
+    },
+    "pass_plus_residual_critic": {
+      "accuracy": 0.9736842105263158,
+      "auroc": 0.9926470588235294,
+      "balanced_accuracy": 0.875,
+      "replan_precision": 1.0,
+      "replan_recall": 0.75
+    },
+    "previous_global_two_signal_critic": {
+      "accuracy": 0.956140350877193,
+      "auroc": 0.9950980392156863,
+      "balanced_accuracy": 0.7916666666666667,
+      "replan_precision": 1.0,
+      "replan_recall": 0.5833333333333334
+    },
+    "trivial_majority": {
+      "accuracy": 0.8947368421052632,
+      "auroc": 0.5,
+      "balanced_accuracy": 0.5,
+      "replan_precision": 0.0,
+      "replan_recall": 0.0
+    }
+  },
+  "held_out_replan_classification_by_pass": {
+    "2": {
+      "negative_states": 7,
+      "pass_plus_residual_critic": {
+        "accuracy": 0.8421052631578947,
+        "auroc": 0.8928571428571428,
+        "balanced_accuracy": 0.875,
+        "replan_precision": 1.0,
+        "replan_recall": 0.75
+      },
+      "pass_specific_majority": {
+        "accuracy": 0.631578947368421,
+        "auroc": 0.5,
+        "balanced_accuracy": 0.5,
+        "replan_precision": 0.631578947368421,
+        "replan_recall": 1.0
+      },
+      "positive_states": 12,
+      "residual_score_ranking": {
+        "accuracy": 0.8421052631578947,
+        "auroc": 0.8928571428571428,
+        "balanced_accuracy": 0.875,
+        "replan_precision": 1.0,
+        "replan_recall": 0.75
+      }
+    },
+    "3": {
+      "negative_states": 19,
+      "pass_plus_residual_critic": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "pass_specific_majority": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "positive_states": 0,
+      "residual_score_ranking": {
+        "accuracy": 0.631578947368421,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      }
+    },
+    "4": {
+      "negative_states": 19,
+      "pass_plus_residual_critic": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "pass_specific_majority": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "positive_states": 0,
+      "residual_score_ranking": {
+        "accuracy": 0.631578947368421,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      }
+    },
+    "5": {
+      "negative_states": 19,
+      "pass_plus_residual_critic": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "pass_specific_majority": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "positive_states": 0,
+      "residual_score_ranking": {
+        "accuracy": 0.6842105263157895,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      }
+    },
+    "6": {
+      "negative_states": 19,
+      "pass_plus_residual_critic": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "pass_specific_majority": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "positive_states": 0,
+      "residual_score_ranking": {
+        "accuracy": 0.3157894736842105,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      }
+    },
+    "7": {
+      "negative_states": 19,
+      "pass_plus_residual_critic": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "pass_specific_majority": {
+        "accuracy": 1.0,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      },
+      "positive_states": 0,
+      "residual_score_ranking": {
+        "accuracy": 0.15789473684210525,
+        "auroc": null,
+        "balanced_accuracy": null,
+        "replan_precision": 0.0,
+        "replan_recall": 0.0
+      }
+    }
+  },
+  "held_out_replan_state_summary": {
+    "advantage": {
+      "mean": 0.001791814963022868,
+      "median": 0.0017725229263305664,
+      "std": 0.0010380403815244755
+    },
+    "combined_prediction": {
+      "mean": 0.0005428081533561151,
+      "median": 0.0004146475344896317,
+      "std": 0.0007365946171173352
+    },
+    "disagreement_residual": {
+      "mean": 0.0033011476198832232,
+      "median": -0.008985118071238196,
+      "std": 0.03389137254846534
+    },
+    "goal_disagreement": {
+      "mean": 0.1823416550954183,
+      "median": 0.17005538940429688,
+      "std": 0.03389137254846534
+    },
+    "progress": {
+      "mean": 0.047769309021532536,
+      "median": 0.046571047976613045,
+      "std": 0.00935381909463753
+    },
+    "progress_residual": {
+      "mean": -0.004333050114413101,
+      "median": -0.005531311159332593,
+      "std": 0.00935381909463753
+    },
+    "residual_critic_prediction": {
+      "mean": 0.0006439214727530876,
+      "median": 0.0005157608538866043,
+      "std": 0.0007365946171173353
+    },
+    "states": 12
+  },
+  "held_out_residual_associations": {
+    "disagreement_residual_vs_advantage_residual": {
+      "pearson": -0.4829502610693008,
+      "spearman": -0.5299487657196088
+    },
+    "progress_residual_vs_advantage_residual": {
+      "pearson": -0.42461761253538455,
+      "spearman": -0.5199611186488731
+    }
+  },
+  "held_out_residual_critic": {
+    "mse": 2.4960565024444734e-05,
+    "mse_improvement_over_train_mean_fraction": 0.09754418697348899,
+    "pearson": 0.3212367577346085,
+    "r2": -0.006995082337571734,
+    "spearman": 0.4175654603997489,
+    "train_mean_baseline_mse": 2.765848993840043e-05
+  },
+  "held_out_state_summaries_by_pass": {
+    "2": {
+      "persist": {
+        "advantage": {
+          "mean": -0.002953324999128069,
+          "median": -0.003327608108520508,
+          "std": 0.0010287806911379483
+        },
+        "combined_prediction": {
+          "mean": -0.0008242395972566945,
+          "median": -0.0006579811219125986,
+          "std": 0.0005247027124296828
+        },
+        "disagreement_residual": {
+          "mean": 0.048262060823894684,
+          "median": 0.048951788743337,
+          "std": 0.0057411930956863715
+        },
+        "goal_disagreement": {
+          "mean": 0.22730256829942977,
+          "median": 0.22799229621887207,
+          "std": 0.0057411930956863715
+        },
+        "progress": {
+          "mean": 0.06507049394505364,
+          "median": 0.06391799449920654,
+          "std": 0.00472117369727216
+        },
+        "progress_residual": {
+          "mean": 0.01296813480910801,
+          "median": 0.011815635363260905,
+          "std": 0.00472117369727216
+        },
+        "residual_critic_prediction": {
+          "mean": -0.0007231262778597218,
+          "median": -0.000556867802515626,
+          "std": 0.0005247027124296827
+        },
+        "states": 7
+      },
+      "replan": {
+        "advantage": {
+          "mean": 0.001791814963022868,
+          "median": 0.0017725229263305664,
+          "std": 0.0010380403815244755
+        },
+        "combined_prediction": {
+          "mean": 0.0005428081533561151,
+          "median": 0.0004146475344896317,
+          "std": 0.0007365946171173352
+        },
+        "disagreement_residual": {
+          "mean": 0.0033011476198832232,
+          "median": -0.008985118071238196,
+          "std": 0.03389137254846534
+        },
+        "goal_disagreement": {
+          "mean": 0.1823416550954183,
+          "median": 0.17005538940429688,
+          "std": 0.03389137254846534
+        },
+        "progress": {
+          "mean": 0.047769309021532536,
+          "median": 0.046571047976613045,
+          "std": 0.00935381909463753
+        },
+        "progress_residual": {
+          "mean": -0.004333050114413101,
+          "median": -0.005531311159332593,
+          "std": 0.00935381909463753
+        },
+        "residual_critic_prediction": {
+          "mean": 0.0006439214727530876,
+          "median": 0.0005157608538866043,
+          "std": 0.0007365946171173353
+        },
+        "states": 12
+      }
+    },
+    "3": {
+      "persist": {
+        "advantage": {
+          "mean": -0.006158615413464998,
+          "median": -0.005719661712646484,
+          "std": 0.003919565988630143
+        },
+        "combined_prediction": {
+          "mean": -0.005599127572890349,
+          "median": -0.006424855678859684,
+          "std": 0.002016015621223551
+        },
+        "disagreement_residual": {
+          "mean": 0.04172594080194394,
+          "median": 0.08366476959652369,
+          "std": 0.06547996222338912
+        },
+        "goal_disagreement": {
+          "mean": 0.532782865198035,
+          "median": 0.5747216939926147,
+          "std": 0.06547996222338912
+        },
+        "progress": {
+          "mean": 0.11571880547623885,
+          "median": 0.1296013593673706,
+          "std": 0.024606927584911443
+        },
+        "progress_residual": {
+          "mean": 0.009970963515384849,
+          "median": 0.023853517406516603,
+          "std": 0.024606927584911443
+        },
+        "residual_critic_prediction": {
+          "mean": -0.0006279597965706335,
+          "median": -0.0014536879025399685,
+          "std": 0.002016015621223551
+        },
+        "states": 19
+      },
+      "replan": null
+    },
+    "4": {
+      "persist": {
+        "advantage": {
+          "mean": -0.011248726593820672,
+          "median": -0.009517669677734375,
+          "std": 0.0053895136357871905
+        },
+        "combined_prediction": {
+          "mean": -0.009527710549348194,
+          "median": -0.01066388624927236,
+          "std": 0.002269665866570037
+        },
+        "disagreement_residual": {
+          "mean": 0.03332591907322752,
+          "median": 0.06369862026638451,
+          "std": 0.050749283829240696
+        },
+        "goal_disagreement": {
+          "mean": 0.7219264883744089,
+          "median": 0.7522991895675659,
+          "std": 0.0507492838292407
+        },
+        "progress": {
+          "mean": 0.13366357903731496,
+          "median": 0.1478070169687271,
+          "std": 0.02505629871761683
+        },
+        "progress_residual": {
+          "mean": 0.011177187208195178,
+          "median": 0.025320625139607325,
+          "std": 0.02505629871761683
+        },
+        "residual_critic_prediction": {
+          "mean": -0.0009320637970966729,
+          "median": -0.0020682394970208406,
+          "std": 0.0022696658665700364
+        },
+        "states": 19
+      },
+      "replan": null
+    },
+    "5": {
+      "persist": {
+        "advantage": {
+          "mean": -0.011404050023932206,
+          "median": -0.009576082229614258,
+          "std": 0.005976208144700045
+        },
+        "combined_prediction": {
+          "mean": -0.008851755739935829,
+          "median": -0.009267880089787973,
+          "std": 0.0014348927103932767
+        },
+        "disagreement_residual": {
+          "mean": 0.028876738102115374,
+          "median": 0.052596353160010434,
+          "std": 0.04268619335816001
+        },
+        "goal_disagreement": {
+          "mean": 0.8196521338663603,
+          "median": 0.8433717489242554,
+          "std": 0.04268619335816001
+        },
+        "progress": {
+          "mean": 0.12467252463102341,
+          "median": 0.13311052322387695,
+          "std": 0.016781710505233735
+        },
+        "progress_residual": {
+          "mean": 0.006494674417707652,
+          "median": 0.014932673010561198,
+          "std": 0.016781710505233735
+        },
+        "residual_critic_prediction": {
+          "mean": -0.00031123136317259386,
+          "median": -0.0007273557130247355,
+          "std": 0.0014348927103932767
+        },
+        "states": 19
+      },
+      "replan": null
+    },
+    "6": {
+      "persist": {
+        "advantage": {
+          "mean": -0.009526020602176064,
+          "median": -0.007942438125610352,
+          "std": 0.005582363341086092
+        },
+        "combined_prediction": {
+          "mean": -0.006795317136099812,
+          "median": -0.006707646056181855,
+          "std": 0.0008273845383491285
+        },
+        "disagreement_residual": {
+          "mean": 0.03305959067149464,
+          "median": 0.05108604298697572,
+          "std": 0.04166772176575607
+        },
+        "goal_disagreement": {
+          "mean": 0.8740181515091344,
+          "median": 0.8920446038246155,
+          "std": 0.04166772176575606
+        },
+        "progress": {
+          "mean": 0.11148683217011,
+          "median": 0.1146051287651062,
+          "std": 0.009584268262853754
+        },
+        "progress_residual": {
+          "mean": 0.0014455489335004309,
+          "median": 0.004563845528496632,
+          "std": 0.009584268262853754
+        },
+        "residual_critic_prediction": {
+          "mean": 0.000476754172460029,
+          "median": 0.0005644252523779869,
+          "std": 0.0008273845383491283
+        },
+        "states": 19
+      },
+      "replan": null
+    },
+    "7": {
+      "persist": {
+        "advantage": {
+          "mean": -0.007982636752881501,
+          "median": -0.0064885616302490234,
+          "std": 0.00497706340454997
+        },
+        "combined_prediction": {
+          "mean": -0.0056312898778470965,
+          "median": -0.005296040171136458,
+          "std": 0.000996070784865551
+        },
+        "disagreement_residual": {
+          "mean": 0.03875864033113443,
+          "median": 0.05355329116185503,
+          "std": 0.04038715059614415
+        },
+        "goal_disagreement": {
+          "mean": 0.8970485894303573,
+          "median": 0.9118432402610779,
+          "std": 0.04038715059614415
+        },
+        "progress": {
+          "mean": 0.1025763432446279,
+          "median": 0.10085891932249069,
+          "std": 0.007273880932236666
+        },
+        "progress_residual": {
+          "mean": -0.0015199410985087807,
+          "median": -0.003237365020645991,
+          "std": 0.007273880932236666
+        },
+        "residual_critic_prediction": {
+          "mean": 0.000997660559062895,
+          "median": 0.0013329102657735348,
+          "std": 0.000996070784865551
+        },
+        "states": 19
+      },
+      "replan": null
+    }
+  },
+  "invariants": {
+    "critic_inputs": [
+      "progress_residual",
+      "disagreement_residual"
+    ],
+    "decision_states": 384,
+    "episodes": 64,
+    "held_out_states": 114,
+    "pass_is_critic_input": false,
+    "passes": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "train_states": 270
+  },
+  "provenance": {
+    "checkpoint": "/Users/ayushi/Documents/hrm_research/experiments/meta_agents_adaptive_400step/20260820T101100Z_adaptive_eta0_seed0_400step/checkpoints/step_400",
+    "critic_architecture": "Linear(2,4)-Tanh-Linear(4,1)",
+    "critic_epochs": 1000,
+    "input_csv": "/Users/ayushi/Documents/hrm_research/analysis/counterfactual_persistence_v2_diagnostic/decision_states.csv",
+    "input_sha256": "f76df29fbc818bec95b8a951a36a63b0910bc625994d7ef3403f413cfb9d6185",
+    "seed": 20260821
+  },
+  "residual_clock_audit": {
+    "mean_residual_prediction_by_pass": {
+      "2": 0.00014027230147468415,
+      "3": -0.0006279597965706335,
+      "4": -0.0009320637970966729,
+      "5": -0.00031123136317259386,
+      "6": 0.000476754172460029,
+      "7": 0.000997660559062895
+    },
+    "prediction_variance_explained_by_pass_fraction": 0.15779661381595542,
+    "prediction_vs_pass": {
+      "pearson": 0.24250276700369047,
+      "spearman": 0.2334213884280563
+    }
+  },
+  "training_pass_means_used_for_all_residualization": {
+    "2": {
+      "advantage": -0.00010111331939697266,
+      "goal_disagreement": 0.17904050747553507,
+      "progress": 0.05210235913594564
+    },
+    "3": {
+      "advantage": -0.004971167776319715,
+      "goal_disagreement": 0.49105692439609105,
+      "progress": 0.105747841960854
+    },
+    "4": {
+      "advantage": -0.00859564675225152,
+      "goal_disagreement": 0.6886005693011814,
+      "progress": 0.12248639182911979
+    },
+    "5": {
+      "advantage": -0.008540524376763238,
+      "goal_disagreement": 0.7907753957642449,
+      "progress": 0.11817785021331575
+    },
+    "6": {
+      "advantage": -0.0072720713085598415,
+      "goal_disagreement": 0.8409585608376398,
+      "progress": 0.11004128323660957
+    },
+    "7": {
+      "advantage": -0.006628950436909993,
+      "goal_disagreement": 0.8582899490992228,
+      "progress": 0.10409628434313668
+    }
+  },
+  "within_pass_statistics_all_states": {
+    "2": {
+      "advantage_mean": -5.814991891384125e-05,
+      "advantage_median": 0.0004284381866455078,
+      "goal_disagreement_vs_advantage": {
+        "pearson": -0.31139565987327733,
+        "spearman": -0.38305860805860803
+      },
+      "progress_vs_advantage": {
+        "pearson": -0.4863685291506942,
+        "spearman": -0.47564102564102567
+      },
+      "replan_win_fraction": 0.546875,
+      "states": 64
+    },
+    "3": {
+      "advantage_mean": -0.005323691293597221,
+      "advantage_median": -0.00476229190826416,
+      "goal_disagreement_vs_advantage": {
+        "pearson": -0.653553247806343,
+        "spearman": -0.7308150183150182
+      },
+      "progress_vs_advantage": {
+        "pearson": -0.7366482608260523,
+        "spearman": -0.6883699633699633
+      },
+      "replan_win_fraction": 0.03125,
+      "states": 64
+    },
+    "4": {
+      "advantage_mean": -0.009383279830217361,
+      "advantage_median": -0.008889913558959961,
+      "goal_disagreement_vs_advantage": {
+        "pearson": -0.6376899531947042,
+        "spearman": -0.6913919413919414
+      },
+      "progress_vs_advantage": {
+        "pearson": -0.6596271455377475,
+        "spearman": -0.7123168498168497
+      },
+      "replan_win_fraction": 0.0,
+      "states": 64
+    },
+    "5": {
+      "advantage_mean": -0.009390633553266525,
+      "advantage_median": -0.009089231491088867,
+      "goal_disagreement_vs_advantage": {
+        "pearson": -0.43226136068971177,
+        "spearman": -0.39761904761904754
+      },
+      "progress_vs_advantage": {
+        "pearson": -0.4116022217522981,
+        "spearman": -0.42614468864468863
+      },
+      "replan_win_fraction": 0.0,
+      "states": 64
+    },
+    "6": {
+      "advantage_mean": -0.007941212505102158,
+      "advantage_median": -0.0068662166595458984,
+      "goal_disagreement_vs_advantage": {
+        "pearson": -0.1051794984319686,
+        "spearman": -0.12051282051282051
+      },
+      "progress_vs_advantage": {
+        "pearson": -0.06285759510235944,
+        "spearman": -0.11515567765567764
+      },
+      "replan_win_fraction": 0.0,
+      "states": 64
+    },
+    "7": {
+      "advantage_mean": -0.007030826061964035,
+      "advantage_median": -0.006313681602478027,
+      "goal_disagreement_vs_advantage": {
+        "pearson": 0.10228452987604035,
+        "spearman": 0.04679487179487179
+      },
+      "progress_vs_advantage": {
+        "pearson": 0.020048927841892356,
+        "spearman": -0.056181318681318676
+      },
+      "replan_win_fraction": 0.0,
+      "states": 64
+    }
+  }
+}

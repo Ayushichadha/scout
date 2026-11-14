@@ -88,6 +88,9 @@ uses deterministic reconstructions, as described in the archived report.
 
 ## Code map and evidence
 
+See [the controller guide](CONTROLLER.md) for the implementation map, released
+counterfactual state data, within-pass diagnostics, and checkpoint-free commands.
+
 - `HRM/models/subgoal_head.py`: goals, gates, fixed and learned replanning.
 - `HRM/models/hrm/hrm_act_v1.py`: persistent goal injection and causal consumption.
 - `HRM/models/losses.py`: displacement alignment and manager/trigger credit.
